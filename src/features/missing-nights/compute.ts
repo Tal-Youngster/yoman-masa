@@ -61,8 +61,8 @@ export function groupMissingGaps(missing: readonly IsoDate[]): MissingGap[] {
   const sorted = [...missing].sort();
 
   const gaps: MissingGap[] = [];
-  let runStart = sorted[0]!;
-  let runEnd = sorted[0]!;
+  let runStart = sorted[0];
+  let runEnd = sorted[0];
 
   const flush = () => {
     gaps.push({
@@ -73,7 +73,7 @@ export function groupMissingGaps(missing: readonly IsoDate[]): MissingGap[] {
   };
 
   for (let i = 1; i < sorted.length; i++) {
-    const next = sorted[i]!;
+    const next = sorted[i];
     if (next === addDays(runEnd, 1)) {
       runEnd = next;
     } else {
