@@ -9,7 +9,7 @@ Single user today; possible small-social pivot later. We already require Google 
 
 ## Decision
 
-- No separate auth system. The Google account that authorizes Drive *is* the user.
+- No separate auth system. The Google account that authorizes Drive _is_ the user.
 - No `user_id` field on entities in v1 — the user is implicit.
 - For the future social pivot: introduce a backend that consumes the same file format. Identity becomes the `sub` claim from a Google ID token. Multi-user data gains `owner_id`, which retroactively maps to "whoever's Drive this came from".
 

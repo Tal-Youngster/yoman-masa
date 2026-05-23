@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FakeDrive } from '@/sync/drive/fake';
-import {
-  drainAll,
-  MemoryWriteQueue,
-  ReconcilerRegistry,
-} from '@/sync/queue';
+import { drainAll, MemoryWriteQueue, ReconcilerRegistry } from '@/sync/queue';
 import type { WriteQueueItem } from '@/sync/queue';
 
 import { ACTIVE_CONFIG, activeConfigReconciler } from './active-config';
@@ -33,9 +29,9 @@ function makeConfigItem(
 
 describe('activeConfigReconciler — unit', () => {
   it('fromMarkdown parses JSON content', () => {
-    expect(
-      activeConfigReconciler.fromMarkdown('{"active_trip_id":"trp_x"}\n'),
-    ).toEqual({ active_trip_id: 'trp_x' });
+    expect(activeConfigReconciler.fromMarkdown('{"active_trip_id":"trp_x"}\n')).toEqual({
+      active_trip_id: 'trp_x',
+    });
   });
 
   it('fromMarkdown returns null on malformed JSON or non-objects', () => {

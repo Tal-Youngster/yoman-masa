@@ -58,7 +58,5 @@ export function AppServicesProvider({
   services: AppServices;
   children: ReactNode;
 }): React.JSX.Element {
-  return (
-    <AppServicesContext.Provider value={services}>{children}</AppServicesContext.Provider>
-  );
+  return <AppServicesContext.Provider value={services}>{children}</AppServicesContext.Provider>;
 }

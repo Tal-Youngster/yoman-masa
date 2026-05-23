@@ -86,8 +86,12 @@ import type { Trip } from '@/domain';
 
 const tripReconciler: Reconciler<Trip, TripPatch> = {
   entityType: 'trip',
-  fromMarkdown(content) { /* parse */ return null; },
-  toMarkdown(entity, original) { /* serialize, preserve body */ return ''; },
+  fromMarkdown(content) {
+    /* parse */ return null;
+  },
+  toMarkdown(entity, original) {
+    /* serialize, preserve body */ return '';
+  },
   applyEdit(originalContent, item) {
     // surgical patch: update frontmatter, leave body verbatim.
     // throw new EditPointMissingError(item.fileId, 'frontmatter.id') if the entity id is gone.

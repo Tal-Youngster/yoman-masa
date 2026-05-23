@@ -136,9 +136,9 @@ describe('Accommodation CRUD + trip filter', () => {
 
     expect(await getAccommodation(accA.id, db)).toEqual(accA);
     expect((await accommodationsByTrip(tripA.id, db)).map((a) => a.id)).toEqual([accA.id]);
-    expect(
-      (await accommodationsByTripAndStatus(tripA.id, 'booked', db)).map((a) => a.id),
-    ).toEqual([accA.id]);
+    expect((await accommodationsByTripAndStatus(tripA.id, 'booked', db)).map((a) => a.id)).toEqual([
+      accA.id,
+    ]);
     expect(
       (await accommodationsByTripAndStatus(tripA.id, 'wishlist', db)).map((a) => a.id),
     ).toEqual([]);

@@ -6,10 +6,7 @@ import { isoDate } from '@/domain/dates';
 import { currency } from '@/domain/money';
 import { newTrip } from '@/domain/trip';
 import { upsertTrip } from '@/lib/storage';
-import {
-  deleteDatabase,
-  makeTestDb,
-} from '@/lib/storage/test-helpers';
+import { deleteDatabase, makeTestDb } from '@/lib/storage/test-helpers';
 import type { TravelDB } from '@/lib/storage';
 
 import { deriveSlug, isSlugUnique, suggestUniqueSlug } from './slug';
@@ -56,14 +53,7 @@ describe('deriveSlug', () => {
   });
 
   it('result is always valid per Trip.slug Zod regex', () => {
-    const samples = [
-      'Kyoto 2026',
-      'São Paulo',
-      "Côte d'Azur",
-      '日本',
-      '2026',
-      '!!!',
-    ];
+    const samples = ['Kyoto 2026', 'São Paulo', "Côte d'Azur", '日本', '2026', '!!!'];
     const regex = /^[a-z0-9][a-z0-9-]*$/;
     for (const name of samples) {
       expect(deriveSlug(name)).toMatch(regex);

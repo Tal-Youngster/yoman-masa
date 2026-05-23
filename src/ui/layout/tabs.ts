@@ -1,6 +1,14 @@
 export interface TabDef {
   /** Path under the root. '/' for dashboard, otherwise `/<slug>`. */
-  to: '/' | '/trips' | '/accommodations' | '/expenses' | '/places' | '/tasks' | '/shopping' | '/articles';
+  to:
+    | '/'
+    | '/trips'
+    | '/accommodations'
+    | '/expenses'
+    | '/places'
+    | '/tasks'
+    | '/shopping'
+    | '/articles';
   label: string;
   /** Compact label for the bottom nav at small widths. */
   shortLabel: string;
@@ -9,12 +17,12 @@ export interface TabDef {
 }
 
 export const TABS: readonly TabDef[] = [
-  { to: '/', label: 'Dashboard', shortLabel: 'Home', icon: '⌂' },
-  { to: '/trips', label: 'Trips', shortLabel: 'Trips', icon: '✈' },
-  { to: '/accommodations', label: 'Accommodations', shortLabel: 'Stay', icon: '⌗' },
-  { to: '/expenses', label: 'Expenses', shortLabel: 'Money', icon: '¤' },
-  { to: '/places', label: 'Places', shortLabel: 'Map', icon: '◉' },
-  { to: '/tasks', label: 'Tasks', shortLabel: 'Tasks', icon: '✓' },
-  { to: '/shopping', label: 'Shopping', shortLabel: 'Shop', icon: '⌘' },
-  { to: '/articles', label: 'Articles', shortLabel: 'Read', icon: '☰' },
+  { to: '/', label: 'Dashboard', shortLabel: 'Home', icon: 'dashboard' },
+  { to: '/trips', label: 'Trips', shortLabel: 'Trips', icon: 'trips' },
+  { to: '/accommodations', label: 'Accommodations', shortLabel: 'Stay', icon: 'accommodations' },
+  { to: '/expenses', label: 'Expenses', shortLabel: 'Money', icon: 'expenses' },
+  { to: '/places', label: 'Places', shortLabel: 'Map', icon: 'places' },
+  { to: '/tasks', label: 'Tasks', shortLabel: 'Tasks', icon: 'tasks' },
+  { to: '/shopping', label: 'Shopping', shortLabel: 'Shop', icon: 'shopping' },
+  { to: '/articles', label: 'Articles', shortLabel: 'Read', icon: 'articles' },
 ];

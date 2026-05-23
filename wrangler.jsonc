@@ -3,12 +3,10 @@
   "name": "yoman-masa",
   "compatibility_date": "2026-05-23",
   "observability": {
-    "enabled": true
+    "enabled": true,
   },
   "assets": {
-    "directory": "dist"
+    "directory": "dist",
   },
-  "compatibility_flags": [
-    "nodejs_compat"
-  ]
+  "compatibility_flags": ["nodejs_compat"],
 }

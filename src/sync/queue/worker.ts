@@ -26,12 +26,7 @@ import {
 } from '../drive/types.js';
 import { reconcileUpdate, type ReconcileOptions } from '../drive/reconcile.js';
 import type { ReconcilerRegistry } from './reconciler.js';
-import type {
-  ProcessOutcome,
-  SyncReport,
-  WriteQueue,
-  WriteQueueItem,
-} from './types.js';
+import type { ProcessOutcome, SyncReport, WriteQueue, WriteQueueItem } from './types.js';
 
 export interface WorkerOptions {
   drive: DriveClient;
@@ -94,12 +89,7 @@ export async function processItem(
     }
 
     // Update path.
-    const result = await reconcileUpdate(
-      opts.drive,
-      reconciler,
-      item,
-      opts.reconcileOptions ?? {},
-    );
+    const result = await reconcileUpdate(opts.drive, reconciler, item, opts.reconcileOptions ?? {});
     return { kind: 'applied', newRevision: result.newRevision };
   } catch (err) {
     if (err instanceof EditPointMissingError) {
@@ -119,10 +109,7 @@ export async function processItem(
  * Drain the queue end-to-end. Stops at the first empty `drainNext` or when
  * `signal.aborted` is true. Returns a summary report.
  */
-export async function drainAll(
-  opts: WorkerOptions,
-  signal?: AbortSignal,
-): Promise<SyncReport> {
+export async function drainAll(opts: WorkerOptions, signal?: AbortSignal): Promise<SyncReport> {
   const report: SyncReport = {
     processed: 0,
     applied: 0,

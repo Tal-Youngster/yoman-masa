@@ -4,7 +4,10 @@ import { ulid } from 'ulid';
 const ULID_BODY = '[0-9A-HJKMNP-TV-Z]{26}';
 
 const branded = <B extends string>(prefix: string, _brand: B) =>
-  z.string().regex(new RegExp(`^${prefix}_${ULID_BODY}$`)).brand<B>();
+  z
+    .string()
+    .regex(new RegExp(`^${prefix}_${ULID_BODY}$`))
+    .brand<B>();
 
 export const TripId = branded('trp', 'TripId');
 export type TripId = z.infer<typeof TripId>;

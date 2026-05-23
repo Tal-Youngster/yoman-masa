@@ -6,10 +6,7 @@ import { isoDate } from '@/domain/dates';
 import { currency } from '@/domain/money';
 import { newTrip } from '@/domain/trip';
 import { upsertTrip } from '@/lib/storage';
-import {
-  deleteDatabase,
-  makeTestDb,
-} from '@/lib/storage/test-helpers';
+import { deleteDatabase, makeTestDb } from '@/lib/storage/test-helpers';
 import type { TravelDB } from '@/lib/storage';
 
 import {
@@ -29,7 +26,9 @@ afterEach(async () => {
   await deleteDatabase(db.name);
 });
 
-const seed = async (overrides: Partial<Parameters<typeof newTrip>[0]>): Promise<ReturnType<typeof newTrip>> => {
+const seed = async (
+  overrides: Partial<Parameters<typeof newTrip>[0]>,
+): Promise<ReturnType<typeof newTrip>> => {
   const trip = newTrip({
     slug: 'kyoto-2026',
     name: 'Kyoto 2026',

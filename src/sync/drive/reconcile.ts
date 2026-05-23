@@ -42,8 +42,7 @@ export interface ReconcileResult {
   attempts: number;
 }
 
-const defaultSleep = (ms: number): Promise<void> =>
-  new Promise((r) => setTimeout(r, ms));
+const defaultSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Reconcile a single update item. Throws `ConflictExhaustedError` after the
@@ -79,8 +78,7 @@ export async function reconcileUpdate(
     const { content: fresh, revision: freshRevision } = await drive.getContent(fileId);
     lastSeenRevision = freshRevision;
 
-    const concurrentEdit =
-      item.baseRevision !== null && freshRevision !== item.baseRevision;
+    const concurrentEdit = item.baseRevision !== null && freshRevision !== item.baseRevision;
 
     // Step 2/3: build the new content. If there was a concurrent edit, the
     // reconciler reapplies its surgical edit on top of fresh content. If not,

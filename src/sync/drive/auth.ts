@@ -26,8 +26,7 @@ export interface AuthConfig {
   loginHint?: string;
 }
 
-const DEFAULT_SCOPE =
-  'https://www.googleapis.com/auth/drive openid email profile';
+const DEFAULT_SCOPE = 'https://www.googleapis.com/auth/drive openid email profile';
 
 const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 
@@ -87,9 +86,7 @@ export class DriveAuth {
     }
     if (window.google?.accounts?.oauth2) return;
     await new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector<HTMLScriptElement>(
-        `script[src="${GIS_SCRIPT_URL}"]`,
-      );
+      const existing = document.querySelector<HTMLScriptElement>(`script[src="${GIS_SCRIPT_URL}"]`);
       if (existing) {
         existing.addEventListener('load', () => resolve(), { once: true });
         existing.addEventListener('error', () => reject(new Error('GIS load failed')), {

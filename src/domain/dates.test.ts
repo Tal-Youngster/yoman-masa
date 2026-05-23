@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  addDays,
-  compareDates,
-  dateRangeArray,
-  daysBetween,
-  isoDate,
-  IsoDate,
-} from './dates';
+import { addDays, compareDates, dateRangeArray, daysBetween, isoDate, IsoDate } from './dates';
 
 describe('IsoDate parsing', () => {
   it('accepts valid dates', () => {

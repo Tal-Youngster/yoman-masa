@@ -70,9 +70,7 @@ export function normalizePath(path: string): string {
 export function normalizePrefix(prefix: string): string {
   const normalized = normalizePath(prefix);
   if (normalized.length === 0) {
-    throw new Error(
-      'WRITE_ALLOWED_PREFIX must be a non-empty path; got an empty/root prefix.',
-    );
+    throw new Error('WRITE_ALLOWED_PREFIX must be a non-empty path; got an empty/root prefix.');
   }
   return normalized;
 }
@@ -106,7 +104,10 @@ export function assertUnderPrefix(candidate: string, prefix: string): string {
     normalizedPrefix = normalizePrefix(prefix);
   } catch (cause) {
     // Configuration bug — surface as out-of-scope to keep the failure mode uniform.
-    throw new WriteOutOfScopeError(candidate, prefix + ` (invalid prefix: ${(cause as Error).message})`);
+    throw new WriteOutOfScopeError(
+      candidate,
+      prefix + ` (invalid prefix: ${(cause as Error).message})`,
+    );
   }
 
   let normalizedCandidate: string;

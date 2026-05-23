@@ -16,11 +16,7 @@ const TRIP: Trip = newTrip({
   status: 'active',
 });
 
-const booked = (
-  checkin: string,
-  checkout: string,
-  trip_id: Trip['id'] = TRIP.id,
-): Accommodation =>
+const booked = (checkin: string, checkout: string, trip_id: Trip['id'] = TRIP.id): Accommodation =>
   newAccommodation({
     trip_id,
     status: 'booked',
@@ -139,19 +135,13 @@ describe('computeMissingNights', () => {
   it('property: covered and missing partition the trip nights', () => {
     fc.assert(
       fc.property(
-        fc.array(
-          fc.tuple(fc.integer({ min: -3, max: 12 }), fc.integer({ min: -2, max: 14 })),
-          { maxLength: 8 },
-        ),
+        fc.array(fc.tuple(fc.integer({ min: -3, max: 12 }), fc.integer({ min: -2, max: 14 })), {
+          maxLength: 8,
+        }),
         (ranges) => {
           const accs: Accommodation[] = ranges
             .filter(([s, e]) => s < e)
-            .map(([s, e]) =>
-              booked(
-                addDays(TRIP.start_date, s),
-                addDays(TRIP.start_date, e),
-              ),
-            );
+            .map(([s, e]) => booked(addDays(TRIP.start_date, s), addDays(TRIP.start_date, e)));
           const r = computeMissingNights(TRIP, accs);
           const missingSet = new Set<IsoDate>(r.missing);
           for (const n of r.covered) {

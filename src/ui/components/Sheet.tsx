@@ -55,9 +55,7 @@ export function Sheet({
       <div
         className={cn(
           'flex h-full flex-col border border-outline-variant bg-surface shadow-xl',
-          side === 'bottom'
-            ? 'rounded-t-2xl pb-[env(safe-area-inset-bottom)]'
-            : 'rounded-l-2xl',
+          side === 'bottom' ? 'rounded-t-2xl pb-[env(safe-area-inset-bottom)]' : 'rounded-l-2xl',
         )}
       >
         {title && (

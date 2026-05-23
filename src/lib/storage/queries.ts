@@ -8,13 +8,7 @@ import type { Article } from '@/domain/article';
 import type { TripId, PlaceId } from '@/domain/ids';
 
 import { db as defaultDb, type TravelDB } from './db';
-import type {
-  FileMeta,
-  KVKey,
-  KVValueMap,
-  WriteQueueItem,
-  EntityType,
-} from './types';
+import type { FileMeta, KVKey, KVValueMap, WriteQueueItem, EntityType } from './types';
 
 /**
  * Strip keys whose value is exactly `undefined` before handing the object to Dexie.
@@ -330,11 +324,7 @@ export async function peekQueue(limit = 50, db?: DB): Promise<WriteQueueItem[]> 
   return dbHandle(db).write_queue.orderBy('created_at').limit(limit).toArray();
 }
 
-export async function recordQueueFailure(
-  id: string,
-  error: string,
-  db?: DB,
-): Promise<void> {
+export async function recordQueueFailure(id: string, error: string, db?: DB): Promise<void> {
   const handle = dbHandle(db);
   await handle.transaction('rw', handle.write_queue, async () => {
     const row = await handle.write_queue.get(id);
@@ -358,19 +348,12 @@ export type { WriteQueueItem, WriteOp } from './types';
 // kv
 // ────────────────────────────────────────────────────────────────────────────
 
-export async function getKV<K extends KVKey>(
-  key: K,
-  db?: DB,
-): Promise<KVValueMap[K] | null> {
+export async function getKV<K extends KVKey>(key: K, db?: DB): Promise<KVValueMap[K] | null> {
   const row = await dbHandle(db).kv.get(key);
   return row ? (row.value as KVValueMap[K]) : null;
 }
 
-export async function setKV<K extends KVKey>(
-  key: K,
-  value: KVValueMap[K],
-  db?: DB,
-): Promise<void> {
+export async function setKV<K extends KVKey>(key: K, value: KVValueMap[K], db?: DB): Promise<void> {
   await dbHandle(db).kv.put({ key, value });
 }
 

@@ -60,10 +60,10 @@ export function TripsList({
             onClick={() => setFilter(f)}
             data-testid={`trips-filter-${f}`}
             className={
-              'rounded-full border px-3 py-1 text-xs ' +
+              'rounded-full border px-3 py-1 text-xs transition-colors ' +
               (filter === f
-                ? 'border-sky-400 bg-sky-500/10 text-sky-200'
-                : 'border-slate-700 text-slate-300 hover:bg-slate-800/60')
+                ? 'border-primary bg-primary/10 text-primary font-medium'
+                : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high')
             }
           >
             {f}
@@ -72,10 +72,10 @@ export function TripsList({
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-400">Loading trips…</p>
+        <p className="text-sm text-on-surface-variant">Loading trips…</p>
       ) : filtered.length === 0 ? (
         <Card>
-          <p className="text-sm text-slate-300" data-testid="trips-empty">
+          <p className="text-sm text-on-surface-variant" data-testid="trips-empty">
             No trips {filter !== 'all' ? `with status "${filter}"` : 'yet'}. Create your first one.
           </p>
         </Card>
@@ -88,21 +88,23 @@ export function TripsList({
                 <Card>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-slate-100">
+                      <span className="text-sm font-semibold text-on-surface">
                         {trip.name}
                         {isActive && (
                           <span
-                            className="ml-2 rounded bg-sky-500/15 px-1.5 py-0.5 text-xs text-sky-200"
+                            className="ml-2 rounded bg-primary/15 px-1.5 py-0.5 text-xs text-primary font-medium"
                             data-testid={`trips-active-badge-${trip.id}`}
                           >
                             active
                           </span>
                         )}
                       </span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-on-surface-variant">
                         {trip.start_date} → {trip.end_date} · {trip.status} · {trip.home_currency}
                       </span>
-                      <span className="text-xs text-slate-500">slug: {trip.slug}</span>
+                      <span className="text-xs text-on-surface-variant opacity-60">
+                        slug: {trip.slug}
+                      </span>
                     </div>
                     <div className="flex gap-2">
                       <Button

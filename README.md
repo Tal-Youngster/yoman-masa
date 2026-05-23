@@ -68,7 +68,7 @@ Every app-written file preserves user content below frontmatter / outside struct
 ### Google OAuth setup
 
 1. Create a project at <https://console.cloud.google.com/>.
-2. APIs & Services → **Enable** the *Google Drive API* and *Google Picker API*.
+2. APIs & Services → **Enable** the _Google Drive API_ and _Google Picker API_.
 3. OAuth consent screen → External → **Testing**. Add your Google account as a test user. Add scopes: `https://www.googleapis.com/auth/drive` and `openid email profile`.
 4. Credentials → Create OAuth Client ID → **Web application**.
    - Authorized JS origins: `http://localhost:5173` and your deployed URL (e.g. `https://travel.<you>.dev`).

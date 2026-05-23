@@ -61,7 +61,8 @@
   --color-surface-variant: #e8e2d7;
 
   /* Typography Scale */
-  --font-family-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-display:
+    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-size-display-xl: 64px;
   --font-size-headline-lg: 40px;
   --font-size-headline-md: 24px;

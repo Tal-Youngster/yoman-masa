@@ -55,5 +55,5 @@ All scoped to the currently selected trip. The caller filters entities by `trip_
 
 ## Sharp edges
 
-- Moving an entity between trips is two operations: rewrite frontmatter `trip_id` *and* move the file. The sync worker must do both atomically (within retry budget) or surface the partial state.
+- Moving an entity between trips is two operations: rewrite frontmatter `trip_id` _and_ move the file. The sync worker must do both atomically (within retry budget) or surface the partial state.
 - A trip's `start_date` / `end_date` change can suddenly create missing nights. Recompute on trip edit.

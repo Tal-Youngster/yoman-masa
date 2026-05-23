@@ -3,11 +3,7 @@ import fc from 'fast-check';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  detectLineEnding,
-  parseFrontmatter,
-  serializeFrontmatter,
-} from './frontmatter';
+import { detectLineEnding, parseFrontmatter, serializeFrontmatter } from './frontmatter';
 
 const fixturesDir = join(fileURLToPath(new URL('./__fixtures__/', import.meta.url)));
 
@@ -154,11 +150,9 @@ const arbitraryFrontmatterValue: fc.Arbitrary<unknown> = fc.letrec((tie) => ({
     { weight: 2, arbitrary: fc.array(tie('value'), { maxLength: 4 }) },
     {
       weight: 2,
-      arbitrary: fc.dictionary(
-        fc.stringMatching(/^[a-zA-Z][a-zA-Z0-9_]{0,12}$/),
-        tie('value'),
-        { maxKeys: 4 },
-      ),
+      arbitrary: fc.dictionary(fc.stringMatching(/^[a-zA-Z][a-zA-Z0-9_]{0,12}$/), tie('value'), {
+        maxKeys: 4,
+      }),
     },
   ),
 })).value;

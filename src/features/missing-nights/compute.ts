@@ -1,10 +1,4 @@
-import {
-  addDays,
-  dateRangeArray,
-  daysBetween,
-  eachDayInRange,
-  type IsoDate,
-} from '@/domain/dates';
+import { addDays, dateRangeArray, daysBetween, eachDayInRange, type IsoDate } from '@/domain/dates';
 import type { Accommodation } from '@/domain/accommodation';
 import type { Trip } from '@/domain/trip';
 
@@ -23,9 +17,7 @@ export function computeMissingNights(
   trip: Trip,
   accommodations: readonly Accommodation[],
 ): MissingNightsResult {
-  const relevant = accommodations.filter(
-    (a) => a.trip_id === trip.id && a.status === 'booked',
-  );
+  const relevant = accommodations.filter((a) => a.trip_id === trip.id && a.status === 'booked');
 
   const covered = new Set<IsoDate>();
   for (const a of relevant) {

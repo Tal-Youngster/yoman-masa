@@ -8,12 +8,12 @@ Personal travel companion PWA. Static, offline-first, integrated with the user's
 ## How agents work on this project
 
 - **One vertical slice at a time.** Slices are defined in `IMPLEMENTATION-PLAN.md` with explicit goal, scope, deliverables, acceptance criteria.
-- **Proposal-first.** If you want to deviate from a slice's spec or change an ADR, propose it to the user *before* writing code. Don't silently expand scope.
+- **Proposal-first.** If you want to deviate from a slice's spec or change an ADR, propose it to the user _before_ writing code. Don't silently expand scope.
 - **Conventional commits.** `feat(<area>):`, `fix(<area>):`, `chore:`, `docs:`, `refactor:`, `test:`. Small, atomic commits that narrate progress. Co-author trailer with Claude.
 - **One branch per slice.** Name: `slice/S<N>-<short-name>`. PR title mirrors the slice title.
 - **ADRs are mandatory** for any new locked decision. Use `docs/adr/0000-template.md` and increment from the highest existing ADR.
 - **Tests for non-trivial logic.** Date math, parsers, conflict reconciliation, currency conversions, anything with edge cases. Use `vitest` for unit tests, `fast-check` for property tests.
-- **No comments that just describe what the code does.** Comment only non-obvious *why* — hidden constraints, subtle invariants, workarounds.
+- **No comments that just describe what the code does.** Comment only non-obvious _why_ — hidden constraints, subtle invariants, workarounds.
 
 ## Quality gates (must pass before completing a slice)
 
@@ -27,19 +27,19 @@ If you can't make all three pass, stop and ask. Do not merge a slice with red ga
 
 ## Stack snapshot
 
-| Concern    | Choice                                                |
-| ---------- | ----------------------------------------------------- |
-| Build      | Vite 6                                                |
-| UI         | React 19, Tailwind 4, TanStack Router/Query           |
-| Lang       | TypeScript 5.7 strict, `exactOptionalPropertyTypes`   |
-| State      | Zustand (UI), TanStack Query (server), Dexie (cache)  |
-| Schemas    | Zod — single source of truth for entities             |
-| Sync       | Google Drive API (full `drive` scope, GIS implicit)   |
-| Maps       | MapLibre GL + Protomaps PMTiles                       |
-| FX         | Frankfurter (`api.frankfurter.dev`)                   |
-| Tests      | Vitest + fast-check (+ jsdom@25, React Testing Library, fake-indexeddb) |
-| Markdown   | `yaml` (eemeli/yaml) for frontmatter parse/serialize  |
-| Host       | Cloudflare Pages (static)                             |
+| Concern  | Choice                                                                  |
+| -------- | ----------------------------------------------------------------------- |
+| Build    | Vite 6                                                                  |
+| UI       | React 19, Tailwind 4, TanStack Router/Query                             |
+| Lang     | TypeScript 5.7 strict, `exactOptionalPropertyTypes`                     |
+| State    | Zustand (UI), TanStack Query (server), Dexie (cache)                    |
+| Schemas  | Zod — single source of truth for entities                               |
+| Sync     | Google Drive API (full `drive` scope, GIS implicit)                     |
+| Maps     | MapLibre GL + Protomaps PMTiles                                         |
+| FX       | Frankfurter (`api.frankfurter.dev`)                                     |
+| Tests    | Vitest + fast-check (+ jsdom@25, React Testing Library, fake-indexeddb) |
+| Markdown | `yaml` (eemeli/yaml) for frontmatter parse/serialize                    |
+| Host     | Cloudflare Pages (static)                                               |
 
 ## Repo layout
 
@@ -92,18 +92,18 @@ The data model and auth choices were made so these don't require a rewrite later
 
 ## Where to find decisions
 
-| Question                                  | Answer                                |
-| ----------------------------------------- | ------------------------------------- |
-| Why no backend?                           | ADR-0001                              |
-| Why Vite + React 19 + Tailwind 4?         | ADR-0002                              |
-| Why full Drive scope?                     | ADR-0003                              |
-| Markdown conventions (Tasks, Dataview)?   | ADR-0004                              |
-| Why MapLibre + PMTiles?                   | ADR-0005                              |
-| Conflict resolution algorithm?            | ADR-0006                              |
-| Identity?                                 | ADR-0007                              |
-| FX rate source + snapshot conversions?    | ADR-0008                              |
-| Hosting + secrets?                        | ADR-0009                              |
-| Multi-trip layout + invariants?           | ADR-0010                              |
+| Question                                | Answer   |
+| --------------------------------------- | -------- |
+| Why no backend?                         | ADR-0001 |
+| Why Vite + React 19 + Tailwind 4?       | ADR-0002 |
+| Why full Drive scope?                   | ADR-0003 |
+| Markdown conventions (Tasks, Dataview)? | ADR-0004 |
+| Why MapLibre + PMTiles?                 | ADR-0005 |
+| Conflict resolution algorithm?          | ADR-0006 |
+| Identity?                               | ADR-0007 |
+| FX rate source + snapshot conversions?  | ADR-0008 |
+| Hosting + secrets?                      | ADR-0009 |
+| Multi-trip layout + invariants?         | ADR-0010 |
 
 ## When to ask the user
 

@@ -80,16 +80,11 @@ export class RealDriveClient implements DriveClient {
 
   async getContent(fileId: FileId): Promise<{ content: string; revision: RevisionId }> {
     // The Drive content endpoint streams raw bytes; we ask for text.
-    const resp = await this.authed(
-      `${API}/files/${encodeURIComponent(fileId)}?alt=media`,
-      { method: 'GET' },
-    );
+    const resp = await this.authed(`${API}/files/${encodeURIComponent(fileId)}?alt=media`, {
+      method: 'GET',
+    });
     if (!resp.ok) {
-      throw new DriveApiError(
-        `getContent ${fileId} failed`,
-        resp.status,
-        await safeText(resp),
-      );
+      throw new DriveApiError(`getContent ${fileId} failed`, resp.status, await safeText(resp));
     }
     const content = await resp.text();
     // Drive content endpoint doesn't return headRevisionId — fetch metadata
@@ -180,10 +175,9 @@ export class RealDriveClient implements DriveClient {
   }
 
   async startChangeToken(): Promise<string> {
-    const out = await this.api<{ startPageToken: string }>(
-      `${API}/changes/startPageToken`,
-      { method: 'GET' },
-    );
+    const out = await this.api<{ startPageToken: string }>(`${API}/changes/startPageToken`, {
+      method: 'GET',
+    });
     return out.startPageToken;
   }
 
@@ -238,11 +232,7 @@ export class RealDriveClient implements DriveClient {
       headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
     });
     if (!resp.ok) {
-      throw new DriveApiError(
-        `${method} ${url} failed`,
-        resp.status,
-        await safeText(resp),
-      );
+      throw new DriveApiError(`${method} ${url} failed`, resp.status, await safeText(resp));
     }
     const raw = (await resp.json()) as RawDriveFile;
     return toFileMetadata(raw, resolvedPath);

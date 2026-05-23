@@ -54,7 +54,11 @@ describe('reconcileUpdate', () => {
     });
     const base = (await drive.getMetadata(id)).headRevisionId;
 
-    const result = await reconcileUpdate(drive, markerReconciler, makeItem({ fileId: id, baseRevision: base }));
+    const result = await reconcileUpdate(
+      drive,
+      markerReconciler,
+      makeItem({ fileId: id, baseRevision: base }),
+    );
 
     expect(result.attempts).toBe(1);
     const { content } = await drive.getContent(id);
@@ -75,7 +79,11 @@ describe('reconcileUpdate', () => {
     // worker calls getContent, but importantly leaving the edit point intact.
     drive.externalEdit(id, "A' <EDIT_POINT> B'");
 
-    const result = await reconcileUpdate(drive, markerReconciler, makeItem({ fileId: id, baseRevision: base }));
+    const result = await reconcileUpdate(
+      drive,
+      markerReconciler,
+      makeItem({ fileId: id, baseRevision: base }),
+    );
 
     expect(result.attempts).toBe(1);
     const { content } = await drive.getContent(id);
