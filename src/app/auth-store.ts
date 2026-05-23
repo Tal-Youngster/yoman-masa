@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware';
 export interface User {
   email: string;
   name: string;
-  picture?: string;
+  picture?: string | undefined;
 }
 
 export interface AuthState {
@@ -17,9 +17,9 @@ export interface AuthState {
 }
 
 interface JwtPayload {
-  email?: string;
-  name?: string;
-  picture?: string;
+  email?: string | undefined;
+  name?: string | undefined;
+  picture?: string | undefined;
   [key: string]: unknown;
 }
 
