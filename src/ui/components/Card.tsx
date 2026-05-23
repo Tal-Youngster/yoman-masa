@@ -18,7 +18,7 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-lg border border-outline-variant bg-surface-container p-4 shadow-sm',
+        'rounded-lg border border-outline-variant bg-surface-container p-4',
         className,
       )}
       {...rest}

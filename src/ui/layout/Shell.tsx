@@ -10,10 +10,14 @@ export function Shell(): React.JSX.Element {
       <div className="flex flex-1">
         <SideNav />
         <main
-          className="flex-1 px-4 pb-24 pt-4 md:pb-8"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 6rem)' }}
+          className="flex-1 flex justify-center"
         >
-          <Outlet />
+          <div
+            className="w-full max-w-[1200px] px-5 py-6 md:px-8 md:py-10 lg:px-16 lg:py-16 pb-24 md:pb-16"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 6rem)' }}
+          >
+            <Outlet />
+          </div>
         </main>
       </div>
       <BottomNav />
