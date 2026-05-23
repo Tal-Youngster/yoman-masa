@@ -10,3 +10,10 @@ export {
 } from './cache';
 export { ratesFilePath } from './paths';
 export { ratesReconciler, type RatesPayload } from './reconciler';
+export {
+  CURRENCIES,
+  findCurrency,
+  currencyName,
+  currencyCountry,
+  type CurrencyInfo,
+} from './list';
