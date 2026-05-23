@@ -128,7 +128,7 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
         data-testid="trip-form-name"
         {...(errors.name ? { error: errors.name } : {})}
       />
-      <div className="text-xs text-slate-500">
+      <div className="text-xs text-on-surface-variant">
         Slug (immutable): <code data-testid="trip-form-slug">{slug || '—'}</code>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -160,7 +160,7 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
           {...(errors.home_currency ? { error: errors.home_currency } : {})}
         />
         <div className="flex flex-col gap-1">
-          <label htmlFor={`${formId}-status`} className="text-xs font-medium text-slate-300">
+          <label htmlFor={`${formId}-status`} className="text-xs font-medium text-on-surface">
             Status
           </label>
           <select
@@ -168,7 +168,7 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
             value={status}
             onChange={(e) => setStatus(e.target.value as Status)}
             data-testid="trip-form-status"
-            className="h-10 rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100"
+            className="h-10 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-sm text-on-surface"
           >
             {STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -179,7 +179,7 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${formId}-notes`} className="text-xs font-medium text-slate-300">
+        <label htmlFor={`${formId}-notes`} className="text-xs font-medium text-on-surface">
           Notes
         </label>
         <textarea
@@ -188,7 +188,7 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           data-testid="trip-form-notes"
-          className="rounded-lg border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100"
+          className="rounded-lg border border-outline-variant bg-surface-container-lowest p-2 text-sm text-on-surface"
         />
       </div>
 
