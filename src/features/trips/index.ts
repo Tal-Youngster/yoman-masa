@@ -18,3 +18,10 @@ export {
 } from './queries';
 export { tripReconciler, type TripPayload } from './reconciler';
 export { tripFilePath, tripFolderPath, activeConfigFilePath } from './paths';
+export {
+  activeConfigReconciler,
+  ACTIVE_CONFIG,
+  type ActiveConfig,
+  type ActiveConfigPayload,
+} from './active-config';
+export { registerTripReconcilers } from './register';
