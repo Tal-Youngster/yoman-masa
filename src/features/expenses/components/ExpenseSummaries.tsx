@@ -1,6 +1,7 @@
 import type { Expense } from '@/domain/expense';
 import type { Currency } from '@/domain/money';
-import { summarizeByCategory, summarizeByPeriod, totalInHome } from '../summaries';
+import { summarizeByPeriod, totalInHome } from '../summaries';
+import { CategoryPieChart } from './CategoryPieChart';
 
 export interface ExpenseSummariesProps {
   expenses: readonly Expense[];
@@ -13,7 +14,6 @@ export function ExpenseSummaries({
 }: ExpenseSummariesProps): React.JSX.Element {
   if (expenses.length === 0) return <></>;
   const totalAll = totalInHome(expenses, homeCurrency);
-  const byCategory = summarizeByCategory(expenses);
   const byMonth = summarizeByPeriod(expenses, 'month');
 
   return (
@@ -31,21 +31,10 @@ export function ExpenseSummaries({
       </header>
 
       <div>
-        <h4 className="mb-1 text-xs font-medium uppercase tracking-wide text-on-surface-variant">
+        <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-on-surface-variant">
           By category
         </h4>
-        <ul className="flex flex-col gap-1 text-xs">
-          {byCategory.map((row) => (
-            <li key={row.category} className="flex items-baseline justify-between">
-              <span className="text-on-surface">{row.category}</span>
-              <span className="text-on-surface-variant">
-                {Object.entries(row.totals)
-                  .map(([ccy, amt]) => `${amt.toFixed(2)} ${ccy}`)
-                  .join(' · ')}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <CategoryPieChart expenses={expenses} homeCurrency={homeCurrency} />
       </div>
 
       <div>

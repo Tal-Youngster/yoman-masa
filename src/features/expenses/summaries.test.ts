@@ -3,7 +3,12 @@ import { TripId, ExpenseId } from '@/domain/ids';
 import { Currency } from '@/domain/money';
 import { IsoDate } from '@/domain/dates';
 import { Expense, ExpenseCategory } from '@/domain/expense';
-import { summarizeByCategory, summarizeByPeriod, totalInHome } from './summaries';
+import {
+  categoryHomeTotals,
+  summarizeByCategory,
+  summarizeByPeriod,
+  totalInHome,
+} from './summaries';
 
 const TRIP = TripId.parse('trp_01HABCDEFGHJKMNPQRSTVWXYZ0');
 const USD = Currency.parse('USD');
@@ -57,6 +62,48 @@ describe('summarizeByCategory', () => {
     expect(food.count).toBe(2);
     const transport = out.find((r) => r.category === 'transport')!;
     expect(transport.totals.EUR).toBe(7);
+  });
+});
+
+describe('categoryHomeTotals', () => {
+  it('normalizes each category to the home currency and sorts by amount desc', () => {
+    const out = categoryHomeTotals(
+      [
+        exp({ date: '2026-05-01', amount: 10, currency: 'USD', category: 'food' }),
+        exp({ date: '2026-05-02', amount: 5, currency: 'USD', category: 'food' }),
+        exp({
+          date: '2026-05-03',
+          amount: 100,
+          currency: 'EUR',
+          category: 'transport',
+          home_conversion: {
+            amount: 110,
+            currency: USD,
+            rate: 1.1,
+            rate_date: IsoDate.parse('2026-05-03'),
+          },
+        }),
+      ],
+      USD,
+    );
+    expect(out.map((r) => r.category)).toEqual(['transport', 'food']);
+    expect(out[0].amount).toBe(110);
+    expect(out[1].amount).toBe(15);
+    expect(out[1].count).toBe(2);
+  });
+
+  it('counts foreign rows without a snapshot as missing, not summed', () => {
+    const out = categoryHomeTotals(
+      [
+        exp({ date: '2026-05-01', amount: 10, currency: 'USD', category: 'food' }),
+        exp({ date: '2026-05-02', amount: 100, currency: 'JPY', category: 'food' }), // no snapshot
+      ],
+      USD,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].amount).toBe(10);
+    expect(out[0].count).toBe(2);
+    expect(out[0].missingSnapshots).toBe(1);
   });
 });
 

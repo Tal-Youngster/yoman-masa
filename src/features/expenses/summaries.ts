@@ -69,6 +69,48 @@ export function totalInHome(expenses: readonly Expense[], home: Currency): HomeT
   return { home, amount, missingSnapshots: missing };
 }
 
+export interface CategoryHomeTotal {
+  category: ExpenseCategory;
+  /** Sum of this category's expenses expressed in `home`, rated rows only. */
+  amount: number;
+  count: number;
+  /** Rows in a foreign currency with no usable snapshot — excluded from `amount`. */
+  missingSnapshots: number;
+}
+
+/**
+ * Per-category totals normalized to the home currency. Unlike
+ * `summarizeByCategory` (which keeps native per-currency buckets), this yields
+ * a single comparable number per category so categories can be charted against
+ * each other. Foreign rows without a home snapshot are counted but not summed.
+ * Sorted descending by amount; ties broken by category id for stability.
+ */
+export function categoryHomeTotals(
+  expenses: readonly Expense[],
+  home: Currency,
+): CategoryHomeTotal[] {
+  const byCat = new Map<ExpenseCategory, CategoryHomeTotal>();
+  for (const e of expenses) {
+    let row = byCat.get(e.category);
+    if (!row) {
+      row = { category: e.category, amount: 0, count: 0, missingSnapshots: 0 };
+      byCat.set(e.category, row);
+    }
+    row.count += 1;
+    if (e.currency === home) {
+      row.amount += e.amount;
+    } else if (e.home_conversion && e.home_conversion.currency === home) {
+      row.amount += e.home_conversion.amount;
+    } else {
+      row.missingSnapshots += 1;
+    }
+  }
+  return Array.from(byCat.values()).sort((a, b) => {
+    if (a.amount !== b.amount) return b.amount - a.amount;
+    return a.category.localeCompare(b.category);
+  });
+}
+
 export type PeriodGrain = 'week' | 'month' | 'all';
 
 export interface PeriodBucket extends AmountByCurrency {
