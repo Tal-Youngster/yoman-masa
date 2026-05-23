@@ -10,6 +10,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { TABS } from './tabs';
+import { useNavStore } from '../../lib/navStore';
 
 export interface TabIconProps {
   name: string;
@@ -41,13 +42,19 @@ export function TabIcon({ name, className }: TabIconProps): React.JSX.Element | 
 }
 
 export function SideNav(): React.JSX.Element {
+  const { tabOrder } = useNavStore();
+
+  const sortedTabs = tabOrder
+    .map((to) => TABS.find((t) => t.to === to))
+    .filter((t): t is typeof TABS[0] => t !== undefined);
+
   return (
     <nav
       aria-label="Primary"
       className="hidden md:flex md:w-64 md:shrink-0 md:flex-col md:gap-2 md:border-r md:border-outline-variant md:bg-surface-container md:px-4 md:py-8 lg:py-16"
     >
       <ul className="flex flex-col gap-1">
-        {TABS.map((tab) => (
+        {sortedTabs.map((tab) => (
           <li key={tab.to}>
             <Link
               to={tab.to}
