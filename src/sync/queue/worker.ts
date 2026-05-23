@@ -138,9 +138,16 @@ export async function drainAll(
     switch (outcome.kind) {
       case 'applied':
         report.applied += 1;
+        // Queues that distinguish "claimed but not yet applied" (e.g. the
+        // Dexie-backed adapter that doesn't delete on `drainNext`) need an
+        // explicit confirmation. `MemoryWriteQueue` ignores this — see its
+        // own `markApplied` helper. We use an optional method here so older
+        // queue implementations stay valid.
+        await opts.queue.markApplied?.(item.id);
         break;
       case 'no-op':
         report.skipped += 1;
+        await opts.queue.markApplied?.(item.id);
         break;
       case 'retry':
         report.retried += 1;

@@ -1,10 +1,51 @@
 import { createContext, type ReactNode } from 'react';
 import type { KVStore } from './kv-store';
 import type { TripsStore } from './trips-store';
+import type { DriveClient } from '@/sync/drive';
+import type { WriteQueue } from '@/sync/queue';
+import type { SyncReport } from '@/sync/queue';
+
+/**
+ * Side-effectful trip-creation surface. The trips slice's UI calls this
+ * instead of touching Dexie + the write queue directly so the form is easy
+ * to test in isolation.
+ */
+export interface TripsAdminService {
+  /** Persist a new trip locally + enqueue the Drive create. Returns the trip. */
+  createTrip(input: {
+    name: string;
+    slug: string;
+    start_date: string;
+    end_date: string;
+    home_currency: string;
+    status: 'planned' | 'active' | 'completed' | 'archived';
+    notes?: string;
+  }): Promise<{ id: string; slug: string }>;
+  /** Persist edits locally + enqueue the Drive update. */
+  updateTrip(input: {
+    id: string;
+    name: string;
+    home_currency: string;
+    status: 'planned' | 'active' | 'completed' | 'archived';
+    start_date: string;
+    end_date: string;
+    notes?: string;
+  }): Promise<void>;
+  /** Set the active trip + enqueue the .travel/config.json write. */
+  setActiveTrip(tripId: string | null): Promise<void>;
+  /** Drain the write queue against Drive. Used by the "Sync now" button. */
+  syncNow(): Promise<SyncReport | null>;
+}
 
 export interface AppServices {
   kv: KVStore;
   trips: TripsStore;
+  /** Trip mutation surface — optional so tests can stub. */
+  tripsAdmin?: TripsAdminService;
+  /** Drive client (real or fake). Optional because the shell renders without it. */
+  drive?: DriveClient;
+  /** Persisted write queue. Optional in tests. */
+  writeQueue?: WriteQueue;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

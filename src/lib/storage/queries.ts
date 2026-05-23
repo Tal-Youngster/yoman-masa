@@ -275,6 +275,12 @@ export async function deleteFileMeta(fileId: string, db?: DB): Promise<void> {
 // write_queue
 // ────────────────────────────────────────────────────────────────────────────
 
+/**
+ * `file_id` and `resolved_path` are required for new enqueues as of v3. Existing
+ * callers that still expect them to be optional should set them explicitly:
+ *  - first-time creates: `file_id: null`, `resolved_path` = the target path.
+ *  - updates: `file_id: '<drive-file-id>'`, `resolved_path` = the existing path.
+ */
 export type EnqueueInput = Omit<WriteQueueItem, 'attempts' | 'last_error' | 'created_at'> & {
   attempts?: number;
   last_error?: string | null;
@@ -291,7 +297,13 @@ export async function enqueueWrite(item: EnqueueInput, db?: DB): Promise<void> {
   await dbHandle(db).write_queue.put(stripUndefined(row));
 }
 
-/** FIFO peek-and-pop. Returns null when the queue is empty. */
+/** FIFO peek-and-pop. Returns null when the queue is empty.
+ *
+ * Destructive — the row is removed before the worker has had a chance to
+ * confirm the write applied. New callers that need the row to remain in the
+ * queue until applied (so a crash mid-write doesn't lose the mutation) should
+ * use {@link peekNextPending} + {@link dequeueById} instead.
+ */
 export async function drainNext(db?: DB): Promise<WriteQueueItem | null> {
   const handle = dbHandle(db);
   return handle.transaction('rw', handle.write_queue, async () => {
@@ -300,6 +312,17 @@ export async function drainNext(db?: DB): Promise<WriteQueueItem | null> {
     await handle.write_queue.delete(next.id);
     return next;
   });
+}
+
+/** Non-destructive FIFO head. The row remains in the queue. */
+export async function peekNextPending(db?: DB): Promise<WriteQueueItem | null> {
+  const next = await dbHandle(db).write_queue.orderBy('created_at').first();
+  return next ?? null;
+}
+
+/** Remove a queue row by id. Idempotent. */
+export async function dequeueById(id: string, db?: DB): Promise<void> {
+  await dbHandle(db).write_queue.delete(id);
 }
 
 /** Inspect without dequeueing (e.g. for the sync worker's retry loop). */

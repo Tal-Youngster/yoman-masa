@@ -15,6 +15,7 @@ import {
   accommodationsByTrip,
   accommodationsByTripAndStatus,
   articlesByTrip,
+  dequeueById,
   deleteAccommodation,
   deleteTrip,
   drainNext,
@@ -31,6 +32,7 @@ import {
   getFileMetaByEntity,
   listTrips,
   listTripsByStatus,
+  peekNextPending,
   peekQueue,
   placesByTrip,
   recordQueueFailure,
@@ -324,6 +326,8 @@ describe('write_queue', () => {
         op: 'create',
         payload: { foo: 1 },
         base_revision: null,
+        file_id: null,
+        resolved_path: 'MyVault/Travel/Trips/test1/Trip.md',
       },
       db,
     );
@@ -337,6 +341,8 @@ describe('write_queue', () => {
         op: 'update',
         payload: { bar: 2 },
         base_revision: 'rev-7',
+        file_id: 'drive-file-7',
+        resolved_path: 'MyVault/Travel/Trips/test1/Expenses/2026-05.md',
       },
       db,
     );
@@ -367,6 +373,8 @@ describe('write_queue', () => {
         op: 'delete',
         payload: null,
         base_revision: null,
+        file_id: 'drive-task-file',
+        resolved_path: 'MyVault/Travel/General/Tasks.md',
       },
       db,
     );
@@ -374,6 +382,72 @@ describe('write_queue', () => {
     expect(row?.attempts).toBe(0);
     expect(row?.last_error).toBeNull();
     expect(typeof row?.created_at).toBe('number');
+  });
+
+  it('round-trips file_id and resolved_path through enqueue → peek → drain', async () => {
+    await enqueueWrite(
+      {
+        id: '01HQV3',
+        entity_type: 'trip',
+        entity_id: 'trp_v3',
+        op: 'update',
+        payload: { foo: 'bar' },
+        base_revision: 'rev-9',
+        file_id: 'drive-trip-9',
+        resolved_path: 'MyVault/Travel/Trips/example/Trip.md',
+      },
+      db,
+    );
+
+    const [peeked] = await peekQueue(10, db);
+    expect(peeked?.file_id).toBe('drive-trip-9');
+    expect(peeked?.resolved_path).toBe('MyVault/Travel/Trips/example/Trip.md');
+
+    const drained = await drainNext(db);
+    expect(drained?.file_id).toBe('drive-trip-9');
+    expect(drained?.resolved_path).toBe('MyVault/Travel/Trips/example/Trip.md');
+  });
+
+  it('peekNextPending returns head without removing; dequeueById removes by id', async () => {
+    await enqueueWrite(
+      {
+        id: 'A',
+        entity_type: 'trip',
+        entity_id: 'trp_a',
+        op: 'create',
+        payload: null,
+        base_revision: null,
+        file_id: null,
+        resolved_path: 'MyVault/Travel/Trips/a/Trip.md',
+      },
+      db,
+    );
+    await new Promise((r) => setTimeout(r, 2));
+    await enqueueWrite(
+      {
+        id: 'B',
+        entity_type: 'trip',
+        entity_id: 'trp_b',
+        op: 'create',
+        payload: null,
+        base_revision: null,
+        file_id: null,
+        resolved_path: 'MyVault/Travel/Trips/b/Trip.md',
+      },
+      db,
+    );
+
+    const head1 = await peekNextPending(db);
+    expect(head1?.id).toBe('A');
+    const head2 = await peekNextPending(db);
+    expect(head2?.id).toBe('A'); // peek does not remove
+
+    await dequeueById('A', db);
+    const head3 = await peekNextPending(db);
+    expect(head3?.id).toBe('B');
+
+    await dequeueById('missing', db); // idempotent
+    expect((await peekQueue(10, db)).map((r) => r.id)).toEqual(['B']);
   });
 });
 

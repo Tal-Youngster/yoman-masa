@@ -1,6 +1,11 @@
 import type { TripId, AccommodationId, PlaceId, ExpenseId, TaskId, ShoppingItemId, ArticleId } from '@/domain/ids';
 
-/** Discriminant used by the write queue and file_meta tables. */
+/** Discriminant used by the write queue and file_meta tables.
+ *
+ * `active_config` is a synthetic type owned by S5: the per-user
+ * `.travel/config.json` pointer file is serialized through the write queue
+ * with this discriminator and a JSON reconciler.
+ */
 export type EntityType =
   | 'trip'
   | 'accommodation'
@@ -8,7 +13,8 @@ export type EntityType =
   | 'expense'
   | 'task'
   | 'shopping_item'
-  | 'article';
+  | 'article'
+  | 'active_config';
 
 export type EntityId =
   | TripId
@@ -26,6 +32,11 @@ export type WriteOp = 'create' | 'update' | 'delete';
  * `payload` carries the serialized entity (for create/update) or null (for delete).
  * `base_revision` is the Drive headRevisionId observed at enqueue time, used by S3 to
  * detect mid-flight concurrent edits.
+ *
+ * `file_id` and `resolved_path` were added in v3 (S5) so the sync worker can route
+ * a queued row to Drive without consulting entity-specific helpers. The
+ * WRITE_ALLOWED_PREFIX guard re-checks `resolved_path` immediately before any
+ * write — burying it in `payload` would couple the guard to per-entity layout.
  */
 export interface WriteQueueItem {
   /** ULID — client-generated; replays are idempotent (ADR-0006). */
@@ -35,6 +46,10 @@ export interface WriteQueueItem {
   op: WriteOp;
   payload: unknown;
   base_revision: string | null;
+  /** Drive file id the edit targets; `null` for first-time creates. */
+  file_id: string | null;
+  /** Resolved vault path of the target file (re-checked by WRITE_ALLOWED_PREFIX). */
+  resolved_path: string;
   attempts: number;
   last_error: string | null;
   /** epoch ms */

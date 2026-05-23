@@ -7,7 +7,7 @@ export function BottomNav(): React.JSX.Element {
     <nav
       aria-label="Primary"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-10 border-t border-slate-800 bg-slate-950/95 backdrop-blur',
+        'fixed inset-x-0 bottom-0 z-10 border-t border-outline-variant bg-surface/95 backdrop-blur',
         'md:hidden',
         'pb-[env(safe-area-inset-bottom)]',
       )}
@@ -18,8 +18,8 @@ export function BottomNav(): React.JSX.Element {
             <Link
               to={tab.to}
               activeOptions={{ exact: tab.to === '/' }}
-              className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] text-slate-400 transition-colors"
-              activeProps={{ 'aria-current': 'page', className: 'text-sky-400' }}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] text-on-surface-variant transition-colors"
+              activeProps={{ 'aria-current': 'page', className: 'text-primary' }}
             >
               <span aria-hidden="true" className="text-base leading-none">
                 {tab.icon}

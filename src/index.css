@@ -1,9 +1,191 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-bg: oklch(0.16 0.02 250);
-  --color-surface: oklch(0.22 0.02 250);
-  --color-border: oklch(0.3 0.02 250);
+  /* Color Palette - Luminous Horizon */
+  --color-surface: #fff9ee;
+  --color-surface-dim: #dfd9cf;
+  --color-surface-bright: #fff9ee;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f9f3e8;
+  --color-surface-container: #f3ede2;
+  --color-surface-container-high: #ede8dd;
+  --color-surface-container-highest: #e8e2d7;
+  --color-on-surface: #1d1c15;
+  --color-on-surface-variant: #56423c;
+  --color-inverse-surface: #333029;
+  --color-inverse-on-surface: #f6f0e5;
+  --color-outline: #89726b;
+  --color-outline-variant: #ddc0b8;
+  --color-surface-tint: #9f4122;
+
+  /* Primary */
+  --color-primary: #9f4122;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #ff8a65;
+  --color-on-primary-container: #752305;
+  --color-inverse-primary: #ffb59e;
+  --color-primary-fixed: #ffdbd0;
+  --color-primary-fixed-dim: #ffb59e;
+  --color-on-primary-fixed: #3a0b00;
+  --color-on-primary-fixed-variant: #7f2a0d;
+
+  /* Secondary */
+  --color-secondary: #556500;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #d6ed7a;
+  --color-on-secondary-container: #5a6c00;
+  --color-secondary-fixed: #d6ed7a;
+  --color-secondary-fixed-dim: #bbd062;
+  --color-on-secondary-fixed: #181e00;
+  --color-on-secondary-fixed-variant: #3f4c00;
+
+  /* Tertiary */
+  --color-tertiary: #326578;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #80b1c7;
+  --color-on-tertiary-container: #074457;
+  --color-tertiary-fixed: #bbe9ff;
+  --color-tertiary-fixed-dim: #9ccee4;
+  --color-on-tertiary-fixed: #001f29;
+  --color-on-tertiary-fixed-variant: #154d5f;
+
+  /* Error */
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* Background */
+  --color-background: #fff9ee;
+  --color-on-background: #1d1c15;
+  --color-surface-variant: #e8e2d7;
+
+  /* Typography Scale */
+  --font-family-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-display-xl: 64px;
+  --font-size-headline-lg: 40px;
+  --font-size-headline-md: 24px;
+  --font-size-body-lg: 18px;
+  --font-size-body-md: 16px;
+  --font-size-label-caps: 12px;
+
+  /* Spacing */
+  --spacing-unit: 8px;
+  --spacing-2: 16px;
+  --spacing-3: 24px;
+  --spacing-4: 32px;
+  --spacing-5: 40px;
+  --spacing-6: 48px;
+  --spacing-8: 64px;
+  --spacing-15: 120px;
+
+  /* Border Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+  --radius-2xl: 3rem;
+  --radius-full: 9999px;
+}
+
+/* Typography Stack */
+@layer base {
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+}
+
+/* Display XL */
+.text-display-xl {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-display-xl);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+
+/* Headline Large */
+.text-headline-lg {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-headline-lg);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* Headline Medium */
+.text-headline-md {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-headline-md);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+/* Body Large */
+.text-body-lg {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-body-lg);
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+/* Body Medium */
+.text-body-md {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-body-md);
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+/* Label Caps */
+.text-label-caps {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-label-caps);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Glassmorphism utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(232, 226, 215, 0.5);
+}
+
+.glass-thick {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(232, 226, 215, 0.6);
+}
+
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(232, 226, 215, 0.3);
+}
+
+/* Elevated shadow (soft, diffused) */
+.shadow-elevated {
+  box-shadow:
+    0 2px 8px rgba(159, 65, 34, 0.05),
+    0 4px 16px rgba(159, 65, 34, 0.08);
+}
+
+.shadow-elevated-lg {
+  box-shadow:
+    0 4px 12px rgba(159, 65, 34, 0.08),
+    0 8px 24px rgba(159, 65, 34, 0.12);
+}
+
+/* Glow effect (soft cyan) */
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(128, 177, 199, 0.15);
 }
 
 html,
@@ -14,13 +196,7 @@ body,
 }
 
 body {
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-family-display);
 }

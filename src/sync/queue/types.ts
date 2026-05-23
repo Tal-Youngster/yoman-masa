@@ -54,8 +54,14 @@ export interface WriteQueue {
   /** Insert a new item. Idempotent on `id`. */
   enqueue(item: WriteQueueItem): Promise<void>;
   /**
-   * Atomically pop the next pending item from the queue. Returns `null` if empty.
-   * The worker calls this in a loop until `null`.
+   * Atomically claim the next pending item from the queue. Returns `null` if
+   * empty. The worker calls this in a loop until `null`.
+   *
+   * Implementations may either (a) remove the row from storage on `drainNext`
+   * (e.g. `MemoryWriteQueue` flips state to `inflight`), or (b) keep the row
+   * in storage and rely on `markApplied` for the final delete (the Dexie
+   * adapter). The worker calls both `markFailed` *and* `markApplied` so it
+   * works with either flavor.
    */
   drainNext(): Promise<WriteQueueItem | null>;
   /**
@@ -64,6 +70,12 @@ export interface WriteQueue {
    * `terminal`.
    */
   markFailed(id: string, error: string, terminal: boolean): Promise<void>;
+  /**
+   * Confirm a successful write. The Dexie adapter deletes the row here; the
+   * in-memory queue's optional method is a no-op. Optional so existing
+   * queues without explicit success-confirmation stay valid.
+   */
+  markApplied?(id: string): Promise<void>;
   /** Optional: peek the head of the queue without removing it. Used by tests. */
   peek?(): Promise<WriteQueueItem | null>;
   /** Optional: size of the queue. */
