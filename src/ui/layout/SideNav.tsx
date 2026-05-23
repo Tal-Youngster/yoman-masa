@@ -44,7 +44,7 @@ export function SideNav(): React.JSX.Element {
   return (
     <nav
       aria-label="Primary"
-      className="hidden md:flex md:w-56 md:shrink-0 md:flex-col md:gap-1 md:border-r md:border-outline-variant bg-surface-container-lowest/80 md:px-3 md:py-4"
+      className="hidden md:flex md:w-64 md:shrink-0 md:flex-col md:gap-2 md:border-r md:border-outline-variant md:bg-surface-container md:px-4 md:py-8 lg:py-16"
     >
       <ul className="flex flex-col gap-1">
         {TABS.map((tab) => (
@@ -52,10 +52,10 @@ export function SideNav(): React.JSX.Element {
             <Link
               to={tab.to}
               activeOptions={{ exact: tab.to === '/' }}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-on-surface-variant transition-colors hover:bg-surface-container-high"
               activeProps={{
                 'aria-current': 'page',
-                className: 'bg-primary text-on-primary',
+                className: 'bg-surface-container-highest text-primary font-medium',
               }}
             >
               <TabIcon name={tab.icon} />

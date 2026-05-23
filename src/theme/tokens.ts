@@ -1,153 +1,183 @@
 /**
- * Luminous Horizon Theme Tokens
+ * Paper & Path Theme Tokens
  * Centralized color palette for use in React components, Zod schemas, or runtime styling.
  */
 
-export const luminousHorizonTheme = {
-  // Surface colors
-  surface: '#fff9ee',
-  surfaceDim: '#dfd9cf',
-  surfaceBright: '#fff9ee',
+export interface ThemeColors {
+  surface: string;
+  surfaceDim: string;
+  surfaceBright: string;
+  surfaceContainerLowest: string;
+  surfaceContainerLow: string;
+  surfaceContainer: string;
+  surfaceContainerHigh: string;
+  surfaceContainerHighest: string;
+  onSurface: string;
+  onSurfaceVariant: string;
+  inverseSurface: string;
+  inverseOnSurface: string;
+  outline: string;
+  outlineVariant: string;
+  surfaceTint: string;
+  primary: string;
+  onPrimary: string;
+  primaryContainer: string;
+  onPrimaryContainer: string;
+  inversePrimary: string;
+  secondary: string;
+  onSecondary: string;
+  secondaryContainer: string;
+  onSecondaryContainer: string;
+  tertiary: string;
+  onTertiary: string;
+  tertiaryContainer: string;
+  onTertiaryContainer: string;
+  error: string;
+  onError: string;
+  errorContainer: string;
+  onErrorContainer: string;
+  primaryFixed: string;
+  primaryFixedDim: string;
+  onPrimaryFixed: string;
+  onPrimaryFixedVariant: string;
+  secondaryFixed: string;
+  secondaryFixedDim: string;
+  onSecondaryFixed: string;
+  onSecondaryFixedVariant: string;
+  tertiaryFixed: string;
+  tertiaryFixedDim: string;
+  onTertiaryFixed: string;
+  onTertiaryFixedVariant: string;
+  background: string;
+  onBackground: string;
+  surfaceVariant: string;
+}
+
+export const paperPathTheme: ThemeColors = {
+  surface: '#fbf9f5',
+  surfaceDim: '#dbdad6',
+  surfaceBright: '#fbf9f5',
   surfaceContainerLowest: '#ffffff',
-  surfaceContainerLow: '#f9f3e8',
-  surfaceContainer: '#f3ede2',
-  surfaceContainerHigh: '#ede8dd',
-  surfaceContainerHighest: '#e8e2d7',
-  onSurface: '#1d1c15',
-  onSurfaceVariant: '#56423c',
-  inverseSurface: '#333029',
-  inverseOnSurface: '#f6f0e5',
-  outline: '#89726b',
-  outlineVariant: '#ddc0b8',
-  surfaceTint: '#9f4122',
-
-  // Primary (Warm Orange)
-  primary: '#9f4122',
+  surfaceContainerLow: '#f5f3ef',
+  surfaceContainer: '#efeeea',
+  surfaceContainerHigh: '#eae8e4',
+  surfaceContainerHighest: '#e4e2de',
+  onSurface: '#1b1c1a',
+  onSurfaceVariant: '#54433a',
+  inverseSurface: '#30312e',
+  inverseOnSurface: '#f2f0ed',
+  outline: '#877369',
+  outlineVariant: '#dac2b6',
+  surfaceTint: '#934b19',
+  primary: '#6c2f00',
   onPrimary: '#ffffff',
-  primaryContainer: '#ff8a65',
-  onPrimaryContainer: '#752305',
-  inversePrimary: '#ffb59e',
-  primaryFixed: '#ffdbd0',
-  primaryFixedDim: '#ffb59e',
-  onPrimaryFixed: '#3a0b00',
-  onPrimaryFixedVariant: '#7f2a0d',
-
-  // Secondary (Pale Lime)
-  secondary: '#556500',
+  primaryContainer: '#8b4513',
+  onPrimaryContainer: '#ffc29f',
+  inversePrimary: '#ffb68c',
+  secondary: '#545e76',
   onSecondary: '#ffffff',
-  secondaryContainer: '#d6ed7a',
-  onSecondaryContainer: '#5a6c00',
-  secondaryFixed: '#d6ed7a',
-  secondaryFixedDim: '#bbd062',
-  onSecondaryFixed: '#181e00',
-  onSecondaryFixedVariant: '#3f4c00',
-
-  // Tertiary (Soft Cyan)
-  tertiary: '#326578',
+  secondaryContainer: '#d7e2ff',
+  onSecondaryContainer: '#5a647c',
+  tertiary: '#5b3a16',
   onTertiary: '#ffffff',
-  tertiaryContainer: '#80b1c7',
-  onTertiaryContainer: '#074457',
-  tertiaryFixed: '#bbe9ff',
-  tertiaryFixedDim: '#9ccee4',
-  onTertiaryFixed: '#001f29',
-  onTertiaryFixedVariant: '#154d5f',
-
-  // Error
+  tertiaryContainer: '#75512b',
+  onTertiaryContainer: '#f8c696',
   error: '#ba1a1a',
   onError: '#ffffff',
   errorContainer: '#ffdad6',
   onErrorContainer: '#93000a',
-
-  // Background
-  background: '#fff9ee',
-  onBackground: '#1d1c15',
-  surfaceVariant: '#e8e2d7',
+  primaryFixed: '#ffdbc9',
+  primaryFixedDim: '#ffb68c',
+  onPrimaryFixed: '#321200',
+  onPrimaryFixedVariant: '#753401',
+  secondaryFixed: '#d7e2ff',
+  secondaryFixedDim: '#bbc6e2',
+  onSecondaryFixed: '#101b30',
+  onSecondaryFixedVariant: '#3c475d',
+  tertiaryFixed: '#ffdcbd',
+  tertiaryFixedDim: '#eebd8e',
+  onTertiaryFixed: '#2c1600',
+  onTertiaryFixedVariant: '#61401b',
+  background: '#fbf9f5',
+  onBackground: '#1b1c1a',
+  surfaceVariant: '#e4e2de',
 } as const;
 
-export type ThemeToken = keyof typeof luminousHorizonTheme;
+export type ThemeToken = keyof ThemeColors;
 
 export const typography = {
-  displayXl: {
-    fontSize: '64px',
-    fontWeight: 800,
-    lineHeight: 1.1,
-    letterSpacing: '-0.04em',
-  },
-  headlineLg: {
-    fontSize: '40px',
+  displayLg: {
+    fontFamily: 'Libre Caslon Text',
+    fontSize: '48px',
     fontWeight: 700,
-    lineHeight: 1.2,
+    lineHeight: '56px',
     letterSpacing: '-0.02em',
   },
+  displayLgMobile: {
+    fontFamily: 'Libre Caslon Text',
+    fontSize: '36px',
+    fontWeight: 700,
+    lineHeight: '44px',
+  },
   headlineMd: {
+    fontFamily: 'Libre Caslon Text',
+    fontSize: '32px',
+    fontWeight: 600,
+    lineHeight: '40px',
+  },
+  headlineSm: {
+    fontFamily: 'Libre Caslon Text',
     fontSize: '24px',
     fontWeight: 600,
-    lineHeight: 1.3,
-    letterSpacing: '-0.01em',
+    lineHeight: '32px',
   },
   bodyLg: {
+    fontFamily: 'Plus Jakarta Sans',
     fontSize: '18px',
     fontWeight: 400,
-    lineHeight: 1.6,
-    letterSpacing: '0',
+    lineHeight: '28px',
   },
   bodyMd: {
+    fontFamily: 'Plus Jakarta Sans',
     fontSize: '16px',
     fontWeight: 400,
-    lineHeight: 1.6,
-    letterSpacing: '0',
+    lineHeight: '24px',
   },
-  labelCaps: {
+  labelMd: {
+    fontFamily: 'Plus Jakarta Sans',
+    fontSize: '14px',
+    fontWeight: 600,
+    lineHeight: '20px',
+    letterSpacing: '0.01em',
+  },
+  labelSm: {
+    fontFamily: 'Plus Jakarta Sans',
     fontSize: '12px',
-    fontWeight: 700,
-    lineHeight: 1,
-    letterSpacing: '0.1em',
-    textTransform: 'uppercase' as const,
+    fontWeight: 500,
+    lineHeight: '16px',
+    letterSpacing: '0.05em',
   },
 } as const;
 
 export const spacing = {
   unit: 8,
-  2: 16,
-  3: 24,
-  4: 32,
-  5: 40,
-  6: 48,
-  8: 64,
-  15: 120,
+  gutter: 24,
+  marginMobile: 20,
+  marginDesktop: 64,
+  maxWidth: 1200,
 } as const;
 
 export const radii = {
-  sm: '0.5rem',
-  md: '1rem',
-  lg: '1.5rem',
-  xl: '2rem',
-  '2xl': '3rem',
+  sm: '0.25rem',
+  DEFAULT: '0.5rem',
+  md: '0.75rem',
+  lg: '1rem',
+  xl: '1.5rem',
   full: '9999px',
-} as const;
-
-/** Glassmorphism preset styles for quick component creation */
-export const glassmorphism = {
-  base: {
-    background: 'rgba(255, 255, 255, 0.7)',
-    backdropFilter: 'blur(20px)',
-    border: '1px solid rgba(232, 226, 215, 0.5)',
-  },
-  thick: {
-    background: 'rgba(255, 255, 255, 0.8)',
-    backdropFilter: 'blur(30px)',
-    border: '1px solid rgba(232, 226, 215, 0.6)',
-  },
-  subtle: {
-    background: 'rgba(255, 255, 255, 0.5)',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(232, 226, 215, 0.3)',
-  },
 } as const;
 
 /** Shadow presets matching the theme's diffused aesthetic */
 export const shadows = {
-  elevated: '0 2px 8px rgba(159, 65, 34, 0.05), 0 4px 16px rgba(159, 65, 34, 0.08)',
-  elevatedLg: '0 4px 12px rgba(159, 65, 34, 0.08), 0 8px 24px rgba(159, 65, 34, 0.12)',
-  glowCyan: '0 0 20px rgba(128, 177, 199, 0.15)',
+  soft: '0 4px 16px rgba(60, 60, 60, 0.04)',
+  floating: '0 8px 24px rgba(60, 60, 60, 0.08)',
 } as const;

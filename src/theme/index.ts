@@ -1,2 +1,2 @@
-export { luminousHorizonTheme, typography, spacing, radii, glassmorphism, shadows } from './tokens';
+export { paperPathTheme, typography, spacing, radii, shadows } from './tokens';
 export type { ThemeToken } from './tokens';
