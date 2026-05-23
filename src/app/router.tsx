@@ -36,6 +36,7 @@ const appRoute = createRoute({
   component: Shell,
   beforeLoad: () => {
     if (!useAuthStore.getState().isAuthenticated) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({ to: '/login' });
     }
   },

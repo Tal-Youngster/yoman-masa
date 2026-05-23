@@ -192,7 +192,7 @@ export function PlacesRoute(): React.JSX.Element {
         tripId={activeTrip.id} 
         onView={openView}
         onEdit={openEdit} 
-        onDelete={handleDelete}
+        onDelete={(p) => { void handleDelete(p); }}
         refreshKey={refreshKey} 
         onDataLoaded={handleDataLoaded}
       />

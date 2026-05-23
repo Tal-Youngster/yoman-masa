@@ -61,7 +61,10 @@ declare global {
     google?: {
       accounts?: {
         oauth2?: GisOauth2Namespace;
-        id?: any;
+        id?: {
+          initialize: (opts: { client_id: string; callback: (resp: { credential: string }) => void }) => void;
+          renderButton: (parent: HTMLElement, opts: unknown) => void;
+        };
       };
       picker?: GooglePickerNamespace;
     };

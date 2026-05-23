@@ -1,4 +1,5 @@
 import { render, type RenderResult } from '@testing-library/react';
+import { useAuthStore } from '@/app/auth-store';
 import { Providers } from '@/app/providers';
 import { AppRoot } from '@/app/AppRoot';
 import { createMemoryRouter } from '@/app/router';
@@ -22,6 +23,10 @@ export function renderApp(opts: RenderAppOptions = {}): RenderResult & {
     ),
     trips: createMockTripsStore(opts.trips ?? []),
   };
+  
+  // Ensure the user is authenticated for app routes
+  useAuthStore.setState({ isAuthenticated: true, user: { email: 'test@example.com', name: 'Test User' } });
+
   const router = createMemoryRouter(opts.initialPath ?? '/');
   const result = render(<AppRoot services={services} router={router} />);
   return Object.assign(result, { services });

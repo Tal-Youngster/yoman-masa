@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/ui/components';
 import { Pencil, Trash2 } from 'lucide-react';
-import { Place } from '@/domain/place';
+import type { Place } from '@/domain/place';
 import type { TripId } from '@/domain/ids';
 import { placesByTrip } from '../queries';
 

@@ -23,7 +23,7 @@ export function AccountMenu(): React.JSX.Element | null {
 
   const handleLogout = () => {
     logout();
-    navigate({ to: '/login' });
+    void navigate({ to: '/login' });
   };
 
   return (

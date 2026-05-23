@@ -16,7 +16,14 @@ export interface AuthState {
   clearError: () => void;
 }
 
-function parseJwt(token: string): any {
+interface JwtPayload {
+  email?: string;
+  name?: string;
+  picture?: string;
+  [key: string]: unknown;
+}
+
+function parseJwt(token: string): JwtPayload | null {
   try {
     const base64Url = token.split('.')[1];
     let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -41,6 +48,7 @@ function parseJwt(token: string): any {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({

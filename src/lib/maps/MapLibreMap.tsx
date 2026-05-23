@@ -20,7 +20,7 @@ if (!PROTOMAPS_API_KEY) {
 
 export interface MapLibreMapProps {
   className?: string;
-  styleUrl?: any;
+  styleUrl?: string;
   initialCenter?: [number, number]; // [lng, lat]
   initialZoom?: number;
   onMapLoad?: (map: maplibregl.Map) => void;
@@ -76,7 +76,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
         map.current = null;
       }
     };
-  }, [styleUrl]);
+  }, [styleUrl, initialCenter, initialZoom, onMapLoad, onClick]);
 
   return (
     <div className={`relative w-full h-full ${className || ''}`}>

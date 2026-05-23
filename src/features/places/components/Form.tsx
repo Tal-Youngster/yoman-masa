@@ -23,7 +23,17 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
   const formId = useId();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  interface SearchSuggestion {
+    placePrediction: {
+      placeId: string;
+      text: { text: string };
+      structuredFormat?: {
+        mainText?: { text: string };
+        secondaryText?: { text: string };
+      };
+    };
+  }
+  const [searchResults, setSearchResults] = useState<SearchSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -37,7 +47,14 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
   const [submitting, setSubmitting] = useState(false);
 
   // Enrichment state
-  const [enrichedDetails, setEnrichedDetails] = useState<any | null>(null);
+  interface EnrichedDetails {
+    location?: { latitude: number; longitude: number };
+    photos?: { name: string }[];
+    displayName?: { text: string };
+    formattedAddress?: string;
+    rating?: number;
+  }
+  const [enrichedDetails, setEnrichedDetails] = useState<EnrichedDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   const isEdit = initial !== undefined;
@@ -47,7 +64,8 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
     if (placeId) {
       void fetchPlaceDetails(placeId);
     }
-  }, []); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeId]);
 
   async function fetchPlaceDetails(id: string) {
     if (!GOOGLE_API_KEY) return;
@@ -60,7 +78,7 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
         }
       });
       if (!res.ok) throw new Error('Failed to fetch details');
-      const data = await res.json();
+      const data = await res.json() as EnrichedDetails;
       setEnrichedDetails(data);
     } catch (err) {
       console.error(err);
@@ -137,6 +155,7 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
       void executeSearch(searchQuery);
     }, 400);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
   async function executeSearch(query: string) {
@@ -159,7 +178,7 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
         throw new Error('403 Forbidden. Please make sure "Places API (New)" is enabled in your Google Cloud Console for this API Key.');
       }
       if (!res.ok) throw new Error('Search failed');
-      const data = await res.json();
+      const data = await res.json() as { suggestions?: SearchSuggestion[] };
       setSearchResults(data.suggestions || []);
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : String(err));
@@ -168,7 +187,7 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
     }
   }
 
-  function applySearchResult(suggestion: any) {
+  function applySearchResult(suggestion: SearchSuggestion) {
     const selectedPlaceId = suggestion.placePrediction.placeId;
     const selectedName = suggestion.placePrediction.text.text;
     

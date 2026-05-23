@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Place } from '@/domain/place';
+import type { Place } from '@/domain/place';
 import { Star, MapPin } from 'lucide-react';
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
@@ -9,7 +9,14 @@ export interface PlaceDetailProps {
 }
 
 export function PlaceDetail({ place }: PlaceDetailProps): React.JSX.Element {
-  const [enrichedDetails, setEnrichedDetails] = useState<any | null>(null);
+  interface EnrichedDetails {
+    location?: { latitude: number; longitude: number };
+    photos?: { name: string }[];
+    displayName?: { text: string };
+    formattedAddress?: string;
+    rating?: number;
+  }
+  const [enrichedDetails, setEnrichedDetails] = useState<EnrichedDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -24,7 +31,7 @@ export function PlaceDetail({ place }: PlaceDetailProps): React.JSX.Element {
           }
         });
         if (res.ok) {
-          setEnrichedDetails(await res.json());
+          setEnrichedDetails((await res.json()) as EnrichedDetails);
         }
       } catch (err) {
         console.error(err);

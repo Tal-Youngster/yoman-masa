@@ -12,7 +12,7 @@ export function LoginPage(): React.JSX.Element {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate({ to: '/' });
+      void navigate({ to: '/' });
     }
   }, [isAuthenticated, navigate]);
 
@@ -27,7 +27,7 @@ export function LoginPage(): React.JSX.Element {
       if (window.google?.accounts?.id && buttonContainerRef.current) {
         window.google.accounts.id.initialize({
           client_id: clientId,
-          callback: (response: any) => {
+          callback: (response: { credential: string }) => {
             login(response.credential);
           },
         });
