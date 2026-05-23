@@ -80,7 +80,6 @@ describe('isSlugUnique', () => {
         start_date: isoDate('2026-09-01'),
         end_date: isoDate('2026-09-15'),
         home_currency: currency('USD'),
-        status: 'planned',
       }),
       db,
     );
@@ -102,7 +101,6 @@ describe('suggestUniqueSlug', () => {
         start_date: isoDate('2026-09-01'),
         end_date: isoDate('2026-09-15'),
         home_currency: currency('USD'),
-        status: 'planned',
       }),
       db,
     );
@@ -114,7 +112,6 @@ describe('suggestUniqueSlug', () => {
         start_date: isoDate('2026-09-01'),
         end_date: isoDate('2026-09-15'),
         home_currency: currency('USD'),
-        status: 'planned',
       }),
       db,
     );

@@ -13,7 +13,6 @@ import {
   getActiveTripId,
   getTripBySlug,
   listTripsAll,
-  listTripsByStatus,
   setActiveTripId,
 } from './queries';
 
@@ -35,7 +34,6 @@ const seed = async (
     start_date: isoDate('2026-09-01'),
     end_date: isoDate('2026-09-15'),
     home_currency: currency('USD'),
-    status: 'planned',
     ...overrides,
   });
   await upsertTrip(trip, db);
@@ -44,18 +42,10 @@ const seed = async (
 
 describe('Trip queries', () => {
   it('listTripsAll returns every trip', async () => {
-    await seed({ slug: 'a', status: 'planned' });
-    await seed({ slug: 'b', status: 'active' });
+    await seed({ slug: 'a' });
+    await seed({ slug: 'b' });
     const all = await listTripsAll(db);
     expect(all.map((t) => t.slug).sort()).toEqual(['a', 'b']);
-  });
-
-  it('listTripsByStatus filters', async () => {
-    await seed({ slug: 'a', status: 'planned' });
-    await seed({ slug: 'b', status: 'active' });
-    await seed({ slug: 'c', status: 'completed' });
-    expect((await listTripsByStatus('planned', db)).map((t) => t.slug)).toEqual(['a']);
-    expect((await listTripsByStatus('active', db)).map((t) => t.slug)).toEqual(['b']);
   });
 
   it('getTripBySlug returns the matching trip or undefined', async () => {

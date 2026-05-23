@@ -80,7 +80,6 @@ describe('Schema migration v1 → v2', () => {
       start_date: isoDate('2026-06-01'),
       end_date: isoDate('2026-06-10'),
       home_currency: currency('USD'),
-      status: 'active',
     });
     const expense = newExpense({
       trip_id: trip.id,
@@ -135,7 +134,6 @@ describe('Schema migration v1 → v2', () => {
       start_date: isoDate('2026-06-01'),
       end_date: isoDate('2026-06-10'),
       home_currency: currency('USD'),
-      status: 'active',
     });
     await db.trips.put(trip);
 
