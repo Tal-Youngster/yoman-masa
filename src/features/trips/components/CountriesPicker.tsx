@@ -2,7 +2,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, X } from 'lucide-react';
 
 import { cn } from '@/ui/components/cn';
-import { COUNTRIES, countryName, flagEmoji } from '../countries';
+import ReactCountryFlag from 'react-country-flag';
+import { COUNTRIES, countryName } from '../countries';
 
 export interface CountriesPickerProps {
   /** Selected ISO 3166-1 alpha-2 codes. */
@@ -94,7 +95,9 @@ export function CountriesPicker({
                 className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-xs"
                 data-testid={`trip-form-country-chip-${code}`}
               >
-                <span aria-hidden="true">{flagEmoji(code)}</span>
+                <span aria-hidden="true" className="inline-flex">
+                  <ReactCountryFlag countryCode={code} svg />
+                </span>
                 <span>{countryName(code)}</span>
                 <span
                   role="button"
@@ -163,8 +166,8 @@ export function CountriesPicker({
                         )}
                       >
                         <span className="flex items-center gap-2">
-                          <span aria-hidden="true" className="text-base">
-                            {flagEmoji(c.code)}
+                          <span aria-hidden="true" className="text-base inline-flex">
+                            <ReactCountryFlag countryCode={c.code} svg />
                           </span>
                           <span>{c.name}</span>
                           <span className="text-xs text-on-surface-variant">{c.code}</span>

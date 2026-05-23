@@ -6,7 +6,7 @@ import { Card } from '@/ui/components';
 import { Sheet } from '@/ui/components';
 import type { Trip } from '@/domain/trip';
 import { listTripsAll } from '../queries';
-import { flagEmoji } from '../countries';
+import ReactCountryFlag from 'react-country-flag';
 import {
   DISPLAY_STATUS_LABELS,
   getDisplayStatus,
@@ -109,7 +109,6 @@ export function TripsList({
         <ul className="flex flex-col gap-2">
           {filtered.map((trip) => {
             const codes = trip.country_codes ?? [];
-            const flags = codes.map((c) => flagEmoji(c)).filter((f) => f.length > 0);
             return (
               <li key={trip.id} data-testid={`trips-row-${trip.id}`}>
                 <Card>
@@ -117,13 +116,15 @@ export function TripsList({
                     <div className="flex flex-col gap-1 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-on-surface">
-                          {flags.length > 0 && (
+                          {codes.length > 0 && (
                             <span
-                              className="mr-1.5"
+                              className="mr-1.5 inline-flex gap-1"
                               aria-label={codes.join(', ')}
                               data-testid={`trips-flags-${trip.id}`}
                             >
-                              {flags.join(' ')}
+                              {codes.map((c) => (
+                                <ReactCountryFlag key={c} countryCode={c} svg />
+                              ))}
                             </span>
                           )}
                           {trip.name}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useId } from 'react';
 
-import { Button, Input } from '@/ui/components';
+import { Button, CurrencyPicker, Input } from '@/ui/components';
 import type { Trip } from '@/domain/trip';
 import { useAppServices } from '@/app/use-app-services';
 import { deriveSlug, suggestUniqueSlug } from '../slug';
@@ -144,12 +144,10 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
           {...(errors.end_date ? { error: errors.end_date } : {})}
         />
       </div>
-      <Input
+      <CurrencyPicker
         label="Home currency"
         value={homeCurrency}
-        onChange={(e) => setHomeCurrency(e.target.value.toUpperCase())}
-        maxLength={3}
-        placeholder="USD"
+        onChange={setHomeCurrency}
         data-testid="trip-form-currency"
         {...(errors.home_currency ? { error: errors.home_currency } : {})}
       />

@@ -22,7 +22,8 @@ export type EntityType =
   | 'task'
   | 'shopping_item'
   | 'article'
-  | 'active_config';
+  | 'active_config'
+  | 'rates_snapshot';
 
 export type EntityId =
   | TripId
@@ -83,13 +84,26 @@ export type KVKey =
   | 'active_trip_id'
   | 'vault_root_file_id'
   | 'travel_folder_file_id'
-  | 'drive_changes_page_token';
+  | 'drive_changes_page_token'
+  | 'rates_snapshot';
+
+/**
+ * Inline shape — `src/lib/currency/` is the typed owner and validates with a
+ * zod schema on read. Stored as a JSON blob in Dexie's kv table.
+ */
+export interface StoredRatesSnapshot {
+  base: string;
+  date: string;
+  rates: Record<string, number>;
+  source: 'frankfurter' | 'fallback';
+}
 
 export interface KVValueMap {
   active_trip_id: TripId;
   vault_root_file_id: string;
   travel_folder_file_id: string;
   drive_changes_page_token: string;
+  rates_snapshot: StoredRatesSnapshot;
 }
 export type KVValue<K extends KVKey> = KVValueMap[K];
 

@@ -154,12 +154,11 @@ describe('Places', () => {
   it('round-trips and isolates by trip; visited filter works', async () => {
     const trip = makeTrip();
     await upsertTrip(trip, db);
-    const wish = newPlace({ trip_id: trip.id, name: 'Wat Pho', lat: 13.7, lng: 100.49 });
+    const wish = newPlace({ trip_id: trip.id, place_id: 'wat-pho', place_alias: 'Wat Pho' });
     const seen = newPlace({
       trip_id: trip.id,
-      name: 'Grand Palace',
-      lat: 13.75,
-      lng: 100.49,
+      place_id: 'grand-palace',
+      place_alias: 'Grand Palace',
       visited: true,
       visited_date: isoDate('2026-06-05'),
     });

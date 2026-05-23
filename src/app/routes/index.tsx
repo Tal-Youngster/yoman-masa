@@ -1,5 +1,6 @@
 import { Card } from '@/ui/components';
 import { TripsRoute as TripsRouteImpl } from '@/features/trips/components';
+export { LoginRoute } from './login';
 
 import { MissingNightsDashboardCard } from '@/features/missing-nights/components';
 
@@ -17,22 +18,8 @@ export function DashboardRoute(): React.JSX.Element {
 export const TripsRoute = TripsRouteImpl;
 
 export { AccommodationsRoute } from '@/features/accommodations/components';
-
-export function ExpensesRoute(): React.JSX.Element {
-  return (
-    <Card title="Expenses" description="Multi-currency spending.">
-      <p className="text-slate-400">S7 — Expenses + FX will populate this view.</p>
-    </Card>
-  );
-}
-
-export function PlacesRoute(): React.JSX.Element {
-  return (
-    <Card title="Places" description="Wishlist + visited map.">
-      <p className="text-slate-400">S8 — Places will populate this view.</p>
-    </Card>
-  );
-}
+export { PlacesRoute } from '@/features/places/components';
+export { ExpensesRoute } from '@/features/expenses/components';
 
 export function TasksRoute(): React.JSX.Element {
   return (

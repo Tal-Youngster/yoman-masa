@@ -6,4 +6,6 @@ export { Card } from './Card';
 export type { CardProps } from './Card';
 export { Sheet } from './Sheet';
 export type { SheetProps, SheetSide } from './Sheet';
+export { CurrencyPicker } from './CurrencyPicker';
+export type { CurrencyPickerProps } from './CurrencyPicker';
 export { cn } from './cn';
