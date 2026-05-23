@@ -15,60 +15,85 @@ import {
   ShoppingRoute,
   TasksRoute,
   TripsRoute,
+  LoginRoute,
 } from './routes';
+import { useAuthStore } from './auth-store';
+import { Outlet, redirect } from '@tanstack/react-router';
 
-const rootRoute = createRootRoute({ component: Shell });
+const rootRoute = createRootRoute({
+  component: Outlet,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  component: LoginRoute,
+});
+
+const appRoute = createRoute({
+  id: '_app',
+  getParentRoute: () => rootRoute,
+  component: Shell,
+  beforeLoad: () => {
+    if (!useAuthStore.getState().isAuthenticated) {
+      throw redirect({ to: '/login' });
+    }
+  },
+});
 
 const dashboardRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: '/',
   component: DashboardRoute,
 });
 const tripsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: '/trips',
   component: TripsRoute,
 });
 const accommodationsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: '/accommodations',
   component: AccommodationsRoute,
 });
 const expensesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: '/expenses',
   component: ExpensesRoute,
 });
 const placesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: '/places',
   component: PlacesRoute,
 });
 const tasksRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: '/tasks',
   component: TasksRoute,
 });
 const shoppingRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: '/shopping',
   component: ShoppingRoute,
 });
 const articlesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: '/articles',
   component: ArticlesRoute,
 });
 
 const routeTree = rootRoute.addChildren([
-  dashboardRoute,
-  tripsRoute,
-  accommodationsRoute,
-  expensesRoute,
-  placesRoute,
-  tasksRoute,
-  shoppingRoute,
-  articlesRoute,
+  loginRoute,
+  appRoute.addChildren([
+    dashboardRoute,
+    tripsRoute,
+    accommodationsRoute,
+    expensesRoute,
+    placesRoute,
+    tasksRoute,
+    shoppingRoute,
+    articlesRoute,
+  ]),
 ]);
 
 export interface CreateAppRouterOptions {

@@ -61,6 +61,7 @@ declare global {
     google?: {
       accounts?: {
         oauth2?: GisOauth2Namespace;
+        id?: any;
       };
       picker?: GooglePickerNamespace;
     };
