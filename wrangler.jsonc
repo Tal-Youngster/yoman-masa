@@ -9,4 +9,21 @@
     "directory": "dist",
   },
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "VITE_GOOGLE_CLIENT_ID": "",
+    "VITE_GOOGLE_API_KEY": "",
+    "VITE_GEMINI_API_KEY": "",
+    "VITE_PROTOMAPS_API_KEY": "",
+  },
+  "env": {
+    "dev": {
+      "name": "yoman-masa-dev",
+      "vars": {
+        "VITE_GOOGLE_CLIENT_ID": "",
+        "VITE_GOOGLE_API_KEY": "",
+        "VITE_GEMINI_API_KEY": "",
+        "VITE_PROTOMAPS_API_KEY": "",
+      },
+    },
+  },
 }
