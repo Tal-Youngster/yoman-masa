@@ -13,6 +13,13 @@ Multi-agent dispatch plan for the Travel Journal app. Each slice is sized to be 
   - `IsoDate` with UTC-based math, tested across DST and leap years
   - `computeMissingNights` + `groupMissingGaps` with 15 cases incl. property test
 
+- **Phase 1 — Foundations** (S1 + S2 + S3 + S4, dispatched in parallel, merged into `main`)
+  - **S1 — Markdown utility** (5 commits): `src/lib/markdown/` — `parseFrontmatter` / `serializeFrontmatter` (eemeli/yaml, LF-normalizing, lineEnding-restoring), line primitives by Obsidian block-ref, 12 fixture round-trips, fast-check property test (1000 runs).
+  - **S2 — Local storage** (5 commits): `src/lib/storage/` — Dexie schema (`trips`, `accommodations`, `places`, `expenses`, `tasks`, `shopping_items`, `articles`, `file_meta`, `write_queue`, `kv`) + typed CRUD + `enqueueWrite` / `drainNext` / `recordQueueFailure` + `getKV` / `setKV` / `deleteKV`. v1→v2 migration adds `[trip_id+date]` compound index. 47 tests via `fake-indexeddb`.
+  - **S3 — Drive client + sync worker** (7 commits): `src/sync/drive/` + `src/sync/queue/` — `WRITE_ALLOWED_PREFIX` guard (25 hostile cases), `FakeDrive` in-memory client, real GIS-backed `DriveClient` (compiles, manual integration only), conflict reconciliation per ADR-0006 (3-attempt budget, exponential backoff), `MemoryWriteQueue` placeholder, reconciler registry. 54 new tests.
+  - **S4 — App shell** (8 commits): `src/app/` + `src/ui/{components,layout}/` — TanStack Router (code-based, 8 placeholder routes), `Shell` / `TopBar` / `SideNav` / `BottomNav` / `TripSwitcher`, `Button` / `Input` / `Card` / `Sheet` primitives (native `<dialog>`), in-memory `KVStore` interface ready for Dexie swap. jsdom@25 pinned (Node 20.17 floor). 28 new tests.
+  - **Merge & integration**: 4 `--no-ff` merges into `main`; trivial `package.json` resolution on S4; `src/app/dexie-kv-store.ts` adapter wires S4's `KVStore` to S2's `getKV` / `setKV` / `deleteKV`. All gates green: typecheck, lint, 177/177 tests, `vite build` (321 KB / 100 KB gzipped).
+
 ## Phase map
 
 ```
@@ -772,54 +779,121 @@ Make it install cleanly on the Pixel, deploy to Cloudflare Pages, and document t
 
 These are the public APIs Phase 1 must commit to and later phases consume. Changes require coordination.
 
-### From S1 (markdown)
+Signatures below reflect what `main` actually exports after Phase 1 merged. Where an agent diverged from the original spec, the change is noted.
+
+### From S1 (markdown) — `src/lib/markdown/`
 
 ```ts
-export function parseFrontmatter(content: string): { frontmatter: Record<string, unknown>; body: string };
-export function serializeFrontmatter(frontmatter: Record<string, unknown>, body: string, opts?: { lineEnding?: 'lf' | 'crlf' }): string;
+export function parseFrontmatter(content: string): {
+  frontmatter: Record<string, unknown>;
+  body: string;
+  lineEnding: 'lf' | 'crlf';
+  hadFrontmatter: boolean;
+};
+export function serializeFrontmatter(
+  frontmatter: Record<string, unknown>,
+  body: string,
+  opts?: { lineEnding?: 'lf' | 'crlf'; alwaysEmit?: boolean },
+): string;
 
 export function findLineByBlockRef(body: string, blockRef: string): { lineIndex: number; line: string } | null;
 export function replaceLine(body: string, blockRef: string, newLine: string): string;
 export function insertLine(body: string, newLine: string, anchor?: { afterBlockRef: string }): string;
 export function removeLine(body: string, blockRef: string): string;
+
+export class AmbiguousBlockRefError extends Error {}
 ```
 
-### From S2 (storage)
+`parseFrontmatter` returns `lineEnding` and `hadFrontmatter` so callers can round-trip CRLF inputs and decide whether to emit an empty fence. `serializeFrontmatter` accepts `alwaysEmit` to force a fence when an input had one but parsed to `{}`.
+
+### From S2 (storage) — `src/lib/storage/`
 
 ```ts
-export const db: TravelDB; // Dexie instance
-export async function upsertTrip(t: Trip): Promise<void>;
-export async function listTripsByStatus(s: TripStatus): Promise<Trip[]>;
-// ... one upsert + one or more queries per entity
-export async function enqueueWrite(item: WriteQueueItem): Promise<void>;
-export async function drainNext(): Promise<WriteQueueItem | null>;
-export async function getKV<K extends KVKey>(key: K): Promise<KVValue<K> | null>;
-export async function setKV<K extends KVKey>(key: K, value: KVValue<K>): Promise<void>;
+export const db: TravelDB; // singleton; tests can construct via `new TravelDB(name)`
+export async function upsertTrip(t: Trip, db?: TravelDB): Promise<void>;
+export async function listTripsByStatus(s: TripStatus, db?: TravelDB): Promise<Trip[]>;
+// ... one upsert + one or more queries per entity (accommodations, places, expenses, tasks, shopping_items, articles)
+
+export interface WriteQueueItem {
+  id: string; entity_type: EntityType; entity_id: string; op: WriteOp;
+  payload: unknown; base_revision: string | null;
+  attempts: number; last_error: string | null; created_at: number; // epoch ms
+}
+export async function enqueueWrite(item: EnqueueInput, db?: TravelDB): Promise<void>;
+export async function drainNext(db?: TravelDB): Promise<WriteQueueItem | null>;
+export async function peekQueue(limit?: number, db?: TravelDB): Promise<WriteQueueItem[]>;
+export async function recordQueueFailure(id: string, error: string, db?: TravelDB): Promise<void>;
+export async function deleteQueueItem(id: string, db?: TravelDB): Promise<void>;
+
+export async function getKV<K extends KVKey>(key: K, db?: TravelDB): Promise<KVValue<K> | null>;
+export async function setKV<K extends KVKey>(key: K, value: KVValue<K>, db?: TravelDB): Promise<void>;
+export async function deleteKV(key: KVKey, db?: TravelDB): Promise<void>;
 ```
 
-### From S3 (Drive + sync)
+All queries accept an optional `db` for test isolation. KVKey is exhaustive over `active_trip_id` / `vault_root_file_id` / `travel_folder_file_id` / `drive_changes_page_token`.
+
+### From S3 (Drive + sync) — `src/sync/drive/`, `src/sync/queue/`
 
 ```ts
 export interface DriveClient {
-  getMetadata(fileId: string): Promise<FileMetadata>;
-  getContent(fileId: string): Promise<{ content: string; revision: string }>;
-  listFolder(folderId: string): Promise<FileMetadata[]>;
+  getMetadata(fileId: FileId): Promise<FileMetadata>;
+  getContent(fileId: FileId): Promise<{ content: string; revision: RevisionId }>;
+  listFolder(folderId: FileId): Promise<readonly FileMetadata[]>;
   createFile(input: CreateFileInput): Promise<FileMetadata>;
   updateFile(input: UpdateFileInput): Promise<FileMetadata>;
-  pickFolder(): Promise<{ id: string; name: string; path: string }>;
-  getChanges(pageToken: string): Promise<{ changes: DriveChange[]; nextPageToken: string }>;
+  pickFolder(): Promise<FolderPick>;
+  getChanges(pageToken: string): Promise<DriveChangeBatch>;
+  startChangeToken(): Promise<string>; // ADDED — Drive `changes.list` needs an initial token
 }
 
-export interface Reconciler<E> {
-  entityType: E['type']; // discriminant
-  fromMarkdown(content: string): E | null;
-  toMarkdown(entity: E, originalContent: string | null): string;
-  applyEdit(originalContent: string, entity: E): string; // surgical patch
+export interface Reconciler<Entity, Payload = unknown> {
+  readonly entityType: string;
+  fromMarkdown(content: string): Entity | null;
+  toMarkdown(entity: Entity, originalContent: string | null): string;
+  applyEdit(originalContent: string, item: WriteQueueItem<Payload>): string; // takes the queue row, not the entity, so reconcilers see baseRevision + payload
 }
 
-export function registerReconciler<E>(r: Reconciler<E>): void;
-export function syncNow(): Promise<SyncReport>;
+export interface WriteQueueItem<P = unknown> {
+  readonly id: string; readonly entityType: string; readonly entityId: string;
+  readonly op: WriteOp; readonly payload: P;
+  readonly baseRevision: string | null;
+  readonly fileId: string | null;         // NEW — null on first-time creates
+  readonly resolvedPath: string;          // NEW — re-checked by WRITE_ALLOWED_PREFIX at write time
+  readonly attempts: number; readonly lastError: string | null;
+  readonly createdAt: string; // ISO
+}
+export interface WriteQueue {
+  enqueue(item: WriteQueueItem): Promise<void>;
+  drainNext(): Promise<WriteQueueItem | null>;
+  markFailed(id: string, error: string, terminal: boolean): Promise<void>;
+}
+
+export const reconcilers: ReconcilerRegistry; // .register(r) / .get(type) / .has(type) / .unregister(type)
+export async function drainAll(opts: WorkerOptions): Promise<SyncReport>; // primary entry point; replaces the spec's `syncNow()`
 ```
+
+S3's deviations from the original spec:
+- Added `startChangeToken()` (Drive `changes.list` needs an initial page token).
+- `Reconciler.applyEdit` receives the `WriteQueueItem`, not the bare entity, so it can see `baseRevision` and the original `payload`.
+- Worker entry point is `drainAll(opts)` over a parameterized bundle (registry + queue + client + guard); no thinner `syncNow()` facade yet.
+
+### S4 (app shell) → S2 wiring — `src/app/dexie-kv-store.ts`
+
+```ts
+export function createDexieKVStore(db?: TravelDB): KVStore;
+```
+
+Wraps S2's `getKV` / `setKV` / `deleteKV` to satisfy S4's `KVStore` interface. `set(key, null)` clears the row.
+
+### Open integration gap — S2 ↔ S3 write queue
+
+S2's `WriteQueueItem` shape doesn't carry S3's `fileId` or `resolvedPath`; field naming is snake_case vs camelCase; `created_at` is epoch ms vs ISO. The S3 worker currently runs against `MemoryWriteQueue` only.
+
+When S5 (Trips) lands the first end-to-end Drive flow, decide:
+1. **Extend S2's `write_queue` schema** (v3) with `file_id` + `resolved_path` columns, then write a Dexie-backed `WriteQueue` adapter, **or**
+2. **Embed `fileId` / `resolvedPath` inside `payload`** and have the adapter extract them at drain time — no schema change.
+
+Recommendation: option 1, because `resolvedPath` is needed by the WRITE_ALLOWED_PREFIX guard before the reconciler runs, and burying it in `payload` couples the guard to entity-specific knowledge.
 
 Feature slices import from these surfaces and **do not** add competing utilities in their own folders.
 

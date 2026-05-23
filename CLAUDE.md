@@ -37,7 +37,8 @@ If you can't make all three pass, stop and ask. Do not merge a slice with red ga
 | Sync       | Google Drive API (full `drive` scope, GIS implicit)   |
 | Maps       | MapLibre GL + Protomaps PMTiles                       |
 | FX         | Frankfurter (`api.frankfurter.dev`)                   |
-| Tests      | Vitest + fast-check                                   |
+| Tests      | Vitest + fast-check (+ jsdom@25, React Testing Library, fake-indexeddb) |
+| Markdown   | `yaml` (eemeli/yaml) for frontmatter parse/serialize  |
 | Host       | Cloudflare Pages (static)                             |
 
 ## Repo layout
