@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Button, Input } from '@/ui/components';
+import { Button, CurrencyPicker, Input } from '@/ui/components';
 import type { Currency} from '@/domain/money';
 import { currency } from '@/domain/money';
 import { IsoDate } from '@/domain/dates';
@@ -121,18 +121,12 @@ export function ExpenseForm({
             required
           />
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-on-surface-variant">Currency</span>
-          <Input
-            type="text"
-            value={ccy}
-            onChange={(e) => setCcy(e.target.value.toUpperCase())}
-            maxLength={3}
-            pattern="[A-Z]{3}"
-            placeholder="USD"
-            required
-          />
-        </label>
+        <CurrencyPicker
+          label="Currency"
+          value={ccy}
+          onChange={setCcy}
+          data-testid="expense-form-currency"
+        />
       </div>
 
       <label className="flex flex-col gap-1">
