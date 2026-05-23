@@ -13,7 +13,6 @@ const sample = newTrip({
   start_date: isoDate('2026-09-01'),
   end_date: isoDate('2026-09-21'),
   home_currency: currency('USD'),
-  status: 'planned',
 });
 
 describe('parseTrip', () => {
@@ -90,12 +89,6 @@ describe('parseTrip round-trip property', () => {
           slug: fc
             .stringMatching(/^[a-z][a-z0-9-]{0,40}$/)
             .filter((s) => /^[a-z0-9][a-z0-9-]*$/.test(s)),
-          status: fc.constantFrom(
-            'planned' as const,
-            'active' as const,
-            'completed' as const,
-            'archived' as const,
-          ),
           notes: fc.string({ maxLength: 50 }),
           body: fc.string({ maxLength: 200 }),
           extras: fc.dictionary(
@@ -111,7 +104,7 @@ describe('parseTrip round-trip property', () => {
                     'start_date',
                     'end_date',
                     'home_currency',
-                    'status',
+                    'country_codes',
                     'notes',
                   ].includes(k),
               ),
@@ -119,14 +112,13 @@ describe('parseTrip round-trip property', () => {
             { maxKeys: 3 },
           ),
         }),
-        ({ name, slug, status, notes, body, extras }) => {
+        ({ name, slug, notes, body, extras }) => {
           const trip = newTrip({
             slug,
             name,
             start_date: isoDate('2026-06-01'),
             end_date: isoDate('2026-06-15'),
             home_currency: currency('USD'),
-            status,
             notes,
           });
           const md = serializeTrip(trip, body, { extraFrontmatter: extras });

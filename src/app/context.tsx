@@ -4,6 +4,7 @@ import type { TripsStore } from './trips-store';
 import type { DriveClient } from '@/sync/drive';
 import type { WriteQueue } from '@/sync/queue';
 import type { SyncReport } from '@/sync/queue';
+import type { AiClient } from '@/lib/ai/client';
 
 /**
  * Side-effectful trip-creation surface. The trips slice's UI calls this
@@ -18,7 +19,7 @@ export interface TripsAdminService {
     start_date: string;
     end_date: string;
     home_currency: string;
-    status: 'planned' | 'active' | 'completed' | 'archived';
+    country_codes?: string[];
     notes?: string;
   }): Promise<{ id: string; slug: string }>;
   /** Persist edits locally + enqueue the Drive update. */
@@ -26,11 +27,16 @@ export interface TripsAdminService {
     id: string;
     name: string;
     home_currency: string;
-    status: 'planned' | 'active' | 'completed' | 'archived';
     start_date: string;
     end_date: string;
+    country_codes?: string[];
     notes?: string;
   }): Promise<void>;
+  /**
+   * Remove the trip locally. Cancels any unsynced writes for it.
+   * The Drive markdown file is *not* deleted — the user does that in Obsidian.
+   */
+  deleteTrip(tripId: string): Promise<void>;
   /** Set the active trip + enqueue the .travel/config.json write. */
   setActiveTrip(tripId: string | null): Promise<void>;
   /** Drain the write queue against Drive. Used by the "Sync now" button. */
@@ -46,6 +52,8 @@ export interface AppServices {
   drive?: DriveClient;
   /** Persisted write queue. Optional in tests. */
   writeQueue?: WriteQueue;
+  /** Generic AI extraction client. Optional. */
+  ai?: AiClient;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

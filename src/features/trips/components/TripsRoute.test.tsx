@@ -45,6 +45,7 @@ function makeAdminStub(overrides: Partial<TripsAdminService> = {}): TripsAdminSe
   calls: {
     createTrip: Array<Parameters<TripsAdminService['createTrip']>[0]>;
     updateTrip: Array<Parameters<TripsAdminService['updateTrip']>[0]>;
+    deleteTrip: Array<Parameters<TripsAdminService['deleteTrip']>[0]>;
     setActiveTrip: Array<Parameters<TripsAdminService['setActiveTrip']>[0]>;
     syncNow: number;
   };
@@ -52,6 +53,7 @@ function makeAdminStub(overrides: Partial<TripsAdminService> = {}): TripsAdminSe
   const calls = {
     createTrip: [] as Array<Parameters<TripsAdminService['createTrip']>[0]>,
     updateTrip: [] as Array<Parameters<TripsAdminService['updateTrip']>[0]>,
+    deleteTrip: [] as Array<Parameters<TripsAdminService['deleteTrip']>[0]>,
     setActiveTrip: [] as Array<Parameters<TripsAdminService['setActiveTrip']>[0]>,
     syncNow: 0,
   };
@@ -66,6 +68,12 @@ function makeAdminStub(overrides: Partial<TripsAdminService> = {}): TripsAdminSe
       overrides.updateTrip ??
       ((input) => {
         calls.updateTrip.push(input);
+        return Promise.resolve();
+      }),
+    deleteTrip:
+      overrides.deleteTrip ??
+      ((id) => {
+        calls.deleteTrip.push(id);
         return Promise.resolve();
       }),
     setActiveTrip:
@@ -186,7 +194,6 @@ describe('TripsRoute — list + create flow', () => {
     start_date: isoDate('2026-09-01'),
     end_date: isoDate('2026-09-15'),
     home_currency: currency('USD'),
-    status: 'active',
   });
 
   it('renders existing trips and lets the user create a new one', async () => {
@@ -228,27 +235,35 @@ describe('TripsRoute — list + create flow', () => {
     await deleteDatabase(db.name);
   });
 
-  it('Set active calls tripsAdmin.setActiveTrip', async () => {
+  it('Delete trip flow: clicking trash opens confirm, confirm calls deleteTrip', async () => {
     const user = userEvent.setup();
-    const planned = newTrip({
-      slug: 'lisbon-2027',
-      name: 'Lisbon 2027',
-      start_date: isoDate('2027-04-01'),
-      end_date: isoDate('2027-04-10'),
-      home_currency: currency('EUR'),
-      status: 'planned',
-    });
     const { admin } = await renderRoute({
       travelFolderId: 'fld_travel',
-      seedTrips: [seeded, planned],
-      activeTripId: seeded.id,
+      seedTrips: [seeded],
     });
 
-    const setActiveBtn = await screen.findByTestId(`trips-set-active-${planned.id}`);
-    await user.click(setActiveBtn);
+    const deleteBtn = await screen.findByTestId(`trips-delete-${seeded.id}`);
+    await user.click(deleteBtn);
+
+    expect(await screen.findByTestId('trips-delete-confirm')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('trips-delete-confirm-button'));
 
     await waitFor(() => {
-      expect(admin.calls.setActiveTrip).toEqual([planned.id]);
+      expect(admin.calls.deleteTrip).toEqual([seeded.id]);
     });
+  });
+
+  it('Delete trip flow: Cancel dismisses the confirm without calling admin', async () => {
+    const user = userEvent.setup();
+    const { admin } = await renderRoute({
+      travelFolderId: 'fld_travel',
+      seedTrips: [seeded],
+    });
+
+    await user.click(await screen.findByTestId(`trips-delete-${seeded.id}`));
+    await user.click(screen.getByTestId('trips-delete-cancel'));
+
+    expect(admin.calls.deleteTrip).toEqual([]);
   });
 });

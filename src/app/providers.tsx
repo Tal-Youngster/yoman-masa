@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppServicesProvider, type AppServices } from './context';
+import { ActiveTripProvider } from '@/ui/layout/useActiveTrip';
 
 export interface ProvidersProps {
   services: AppServices;
@@ -23,7 +24,9 @@ export function Providers({ services, children }: ProvidersProps): React.JSX.Ele
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppServicesProvider services={services}>{children}</AppServicesProvider>
+      <AppServicesProvider services={services}>
+        <ActiveTripProvider>{children}</ActiveTripProvider>
+      </AppServicesProvider>
     </QueryClientProvider>
   );
 }

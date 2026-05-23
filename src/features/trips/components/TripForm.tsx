@@ -1,13 +1,10 @@
 import { useEffect, useState, useId } from 'react';
 
 import { Button, Input } from '@/ui/components';
-import type { Trip, TripStatus } from '@/domain/trip';
+import type { Trip } from '@/domain/trip';
 import { useAppServices } from '@/app/use-app-services';
 import { deriveSlug, suggestUniqueSlug } from '../slug';
-
-type Status = TripStatus;
-
-const STATUSES: Status[] = ['planned', 'active', 'completed', 'archived'];
+import { CountriesPicker } from './CountriesPicker';
 
 export interface TripFormProps {
   /** When provided, the form is in edit mode and the slug field is read-only. */
@@ -38,7 +35,7 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
   const [startDate, setStartDate] = useState(initial?.start_date ?? '');
   const [endDate, setEndDate] = useState(initial?.end_date ?? '');
   const [homeCurrency, setHomeCurrency] = useState(initial?.home_currency ?? 'USD');
-  const [status, setStatus] = useState<Status>(initial?.status ?? 'planned');
+  const [countryCodes, setCountryCodes] = useState<string[]>(initial?.country_codes ?? []);
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -91,13 +88,11 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
           start_date: startDate,
           end_date: endDate,
           home_currency: homeCurrency,
-          status,
+          country_codes: countryCodes,
           notes,
         });
         onSuccess?.({ id: initial.id, slug: initial.slug });
       } else {
-        // Resolve a unique slug just before write — collisions are rare but
-        // happen if the user pasted the same name twice.
         const uniqueSlug = await suggestUniqueSlug(name.trim());
         const created = await tripsAdmin.createTrip({
           name: name.trim(),
@@ -105,7 +100,7 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
           start_date: startDate,
           end_date: endDate,
           home_currency: homeCurrency,
-          status,
+          country_codes: countryCodes,
           notes,
         });
         onSuccess?.(created);
@@ -149,35 +144,16 @@ export function TripForm({ initial, onSuccess, onCancel }: TripFormProps): React
           {...(errors.end_date ? { error: errors.end_date } : {})}
         />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Input
-          label="Home currency"
-          value={homeCurrency}
-          onChange={(e) => setHomeCurrency(e.target.value.toUpperCase())}
-          maxLength={3}
-          placeholder="USD"
-          data-testid="trip-form-currency"
-          {...(errors.home_currency ? { error: errors.home_currency } : {})}
-        />
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`${formId}-status`} className="text-xs font-medium text-on-surface">
-            Status
-          </label>
-          <select
-            id={`${formId}-status`}
-            value={status}
-            onChange={(e) => setStatus(e.target.value as Status)}
-            data-testid="trip-form-status"
-            className="h-10 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-sm text-on-surface"
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <Input
+        label="Home currency"
+        value={homeCurrency}
+        onChange={(e) => setHomeCurrency(e.target.value.toUpperCase())}
+        maxLength={3}
+        placeholder="USD"
+        data-testid="trip-form-currency"
+        {...(errors.home_currency ? { error: errors.home_currency } : {})}
+      />
+      <CountriesPicker value={countryCodes} onChange={setCountryCodes} />
       <div className="flex flex-col gap-1">
         <label htmlFor={`${formId}-notes`} className="text-xs font-medium text-on-surface">
           Notes

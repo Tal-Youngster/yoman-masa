@@ -12,7 +12,7 @@
 
 import { z } from 'zod';
 
-import { Trip } from '@/domain/trip';
+import { CountryCode, Trip } from '@/domain/trip';
 import { newTripId, type TripId } from '@/domain/ids';
 import { IsoDate } from '@/domain/dates';
 import { Currency } from '@/domain/money';
@@ -25,7 +25,15 @@ import {
 } from '@/sync/queue';
 import type { DriveClient } from '@/sync/drive';
 import type { FileId } from '@/sync/drive';
-import { getFileMetaByEntity, upsertTrip } from '@/lib/storage';
+import {
+  db as defaultDb,
+  deleteFileMeta,
+  deleteKV,
+  deleteTrip as deleteTripRow,
+  getFileMetaByEntity,
+  getKV,
+  upsertTrip,
+} from '@/lib/storage';
 import type { TravelDB } from '@/lib/storage';
 import { tripFilePath, activeConfigFilePath } from '@/features/trips/paths';
 import type { TripPayload } from '@/features/trips/reconciler';
@@ -53,7 +61,7 @@ const CreateInput = z.object({
   start_date: IsoDate,
   end_date: IsoDate,
   home_currency: Currency,
-  status: z.enum(['planned', 'active', 'completed', 'archived']),
+  country_codes: z.array(CountryCode).default([]),
   notes: z.string().default(''),
 });
 
@@ -111,9 +119,9 @@ export function createTripsAdmin(deps: TripsAdminDeps): TripsAdminService {
         ...existing,
         name: input.name,
         home_currency: input.home_currency,
-        status: input.status,
         start_date: input.start_date,
         end_date: input.end_date,
+        country_codes: input.country_codes ?? existing.country_codes,
         notes: input.notes ?? existing.notes,
       });
       await upsertTrip(updated, deps.db);
@@ -133,6 +141,35 @@ export function createTripsAdmin(deps: TripsAdminDeps): TripsAdminService {
         lastError: null,
         createdAt: new Date().toISOString(),
       });
+    },
+
+    async deleteTrip(tripId): Promise<void> {
+      const handle = deps.db;
+      const dbRef = handle ?? defaultDb;
+      // Cancel any unsynced writes targeting this trip. The vault file (if
+      // it exists on Drive) is intentionally left in place — the user
+      // removes it in Obsidian. ADR-0001's "no backend, vault as source of
+      // truth" plus the worker's hard refusal of `op: 'delete'` (see
+      // src/sync/queue/worker.ts) means we don't try to push a delete.
+      await dbRef.write_queue
+        .where('entity_id')
+        .equals(tripId)
+        .filter((row) => row.entity_type === 'trip')
+        .delete();
+      // Drop the file-meta row so a future re-create with the same id
+      // doesn't try to update a stale revision.
+      const meta = await getFileMetaByEntity('trip', tripId, handle);
+      if (meta) {
+        await deleteFileMeta(meta.file_id, handle);
+      }
+      // If this trip happened to be the active one, clear the pointer (KV
+      // only — we deliberately do not enqueue an active_config write so
+      // remote clients keep their own state).
+      const activeId = await getKV('active_trip_id', handle);
+      if (activeId === tripId) {
+        await deleteKV('active_trip_id', handle);
+      }
+      await deleteTripRow(tripId as TripId, handle);
     },
 
     async setActiveTrip(tripId): Promise<void> {

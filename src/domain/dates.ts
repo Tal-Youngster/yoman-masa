@@ -32,6 +32,24 @@ export function todayIso(now: Date = new Date()): IsoDate {
   return fromParts(now.getFullYear(), now.getMonth() + 1, now.getDate());
 }
 
+export function isValidIsoDate(str: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) return false;
+  const d = new Date(str);
+  return !isNaN(d.getTime()) && str === d.toISOString().split('T')[0];
+}
+
+export function getDatesBetween(startIso: string, endIso: string): IsoDate[] {
+  const dates: IsoDate[] = [];
+  let current = new Date(startIso);
+  const end = new Date(endIso);
+  
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0] as IsoDate);
+    current = new Date(current.getTime() + 86400000);
+  }
+  return dates;
+}
+
 export function addDays(date: IsoDate, n: number): IsoDate {
   const [y, m, d] = parts(date);
   const dt = new Date(Date.UTC(y, m - 1, d));

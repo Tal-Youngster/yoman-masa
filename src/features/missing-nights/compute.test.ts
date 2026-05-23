@@ -13,7 +13,6 @@ const TRIP: Trip = newTrip({
   start_date: isoDate('2026-07-01'),
   end_date: isoDate('2026-07-10'),
   home_currency: currency('USD'),
-  status: 'active',
 });
 
 const booked = (checkin: string, checkout: string, trip_id: Trip['id'] = TRIP.id): Accommodation =>
@@ -92,7 +91,6 @@ describe('computeMissingNights', () => {
       start_date: isoDate('2026-08-01'),
       end_date: isoDate('2026-08-10'),
       home_currency: currency('USD'),
-      status: 'planned',
     });
     const otherAcc = booked('2026-07-01', '2026-07-11', other.id);
     const r = computeMissingNights(TRIP, [otherAcc]);
@@ -111,7 +109,6 @@ describe('computeMissingNights', () => {
       start_date: isoDate('2026-07-05'),
       end_date: isoDate('2026-07-05'),
       home_currency: currency('USD'),
-      status: 'planned',
     });
     const r = computeMissingNights(oneNight, []);
     expect(r.trip_total_nights).toBe(1);

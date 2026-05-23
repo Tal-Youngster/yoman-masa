@@ -1,3 +1,5 @@
+import 'fake-indexeddb/auto';
+
 import { describe, it, expect, beforeAll } from 'vitest';
 import { screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -82,17 +84,22 @@ describe('Shell', () => {
 
   it('trip switcher shows the active trip name and lets the user switch', async () => {
     const user = userEvent.setup();
+    // Status is derived from dates. tripA spans a wide window so it stays
+    // 'active' under any real "today" the test runner uses; tripB is far in
+    // the future so it stays 'planned'.
     const tripA = makeTrip({
       id: 'trip-a' as ReturnType<typeof makeTrip>['id'],
       slug: 'kyoto-2026',
       name: 'Kyoto 2026',
-      status: 'active',
+      start_date: '2020-01-01' as ReturnType<typeof makeTrip>['start_date'],
+      end_date: '2099-12-31' as ReturnType<typeof makeTrip>['end_date'],
     });
     const tripB = makeTrip({
       id: 'trip-b' as ReturnType<typeof makeTrip>['id'],
       slug: 'lisbon-2027',
       name: 'Lisbon 2027',
-      status: 'planned',
+      start_date: '2200-04-01' as ReturnType<typeof makeTrip>['start_date'],
+      end_date: '2200-04-15' as ReturnType<typeof makeTrip>['end_date'],
     });
     const { services } = renderApp({ trips: [tripA, tripB] });
 

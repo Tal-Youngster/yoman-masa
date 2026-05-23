@@ -1,6 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useAppServices } from '@/app/use-app-services';
 import type { Trip } from '@/domain';
+import { getDisplayStatus } from '@/features/trips/status';
 
 interface ActiveTripState {
   trips: Trip[];
@@ -15,16 +24,18 @@ export interface UseActiveTrip extends ActiveTripState {
 
 /**
  * Default selection: if `active_trip_id` is set and still exists, use it;
- * otherwise the first `status === 'active'` trip; otherwise null (callers
- * should deep-link to the Trips slice to create one).
+ * otherwise the first trip whose date range includes today; otherwise null
+ * (callers should deep-link to the Trips slice to create one).
  */
 function pickDefaultActive(trips: Trip[], stored: string | null): string | null {
   if (stored && trips.some((t) => t.id === stored)) return stored;
-  const firstActive = trips.find((t) => t.status === 'active');
+  const firstActive = trips.find((t) => getDisplayStatus(t) === 'active');
   return firstActive?.id ?? null;
 }
 
-export function useActiveTrip(): UseActiveTrip {
+const ActiveTripContext = createContext<UseActiveTrip | null>(null);
+
+export function ActiveTripProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const { kv, trips: tripsStore } = useAppServices();
   const [state, setState] = useState<ActiveTripState>({
     trips: [],
@@ -57,7 +68,19 @@ export function useActiveTrip(): UseActiveTrip {
     [kv],
   );
 
-  const activeTrip = state.trips.find((t) => t.id === state.activeTripId) ?? null;
+  const value = useMemo<UseActiveTrip>(() => {
+    const activeTrip = state.trips.find((t) => t.id === state.activeTripId) ?? null;
+    return { ...state, activeTrip, setActiveTrip };
+  }, [state, setActiveTrip]);
 
-  return { ...state, activeTrip, setActiveTrip };
+  return <ActiveTripContext.Provider value={value}>{children}</ActiveTripContext.Provider>;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useActiveTrip(): UseActiveTrip {
+  const ctx = useContext(ActiveTripContext);
+  if (!ctx) {
+    throw new Error('useActiveTrip must be used inside <ActiveTripProvider>');
+  }
+  return ctx;
 }

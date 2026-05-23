@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Plus, RefreshCw } from 'lucide-react';
 
-import { Button, Sheet } from '@/ui/components';
+import { Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import type { Trip } from '@/domain/trip';
 
@@ -17,7 +18,6 @@ export function TripsRoute(): React.JSX.Element {
   const { kv, tripsAdmin } = useAppServices();
 
   const [travelFolderId, setTravelFolderId] = useState<string | null | undefined>(undefined);
-  const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Trip | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -27,13 +27,9 @@ export function TripsRoute(): React.JSX.Element {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [folder, active] = await Promise.all([
-        kv.get('travel_folder_file_id'),
-        kv.get('active_trip_id'),
-      ]);
+      const folder = await kv.get('travel_folder_file_id');
       if (cancelled) return;
       setTravelFolderId(folder);
-      setActiveTripId(active);
     })();
     return () => {
       cancelled = true;
@@ -50,11 +46,10 @@ export function TripsRoute(): React.JSX.Element {
     setSheetOpen(true);
   }
 
-  async function handleSetActive(tripId: string): Promise<void> {
+  async function handleDelete(trip: Trip): Promise<void> {
     if (!tripsAdmin) return;
-    await tripsAdmin.setActiveTrip(tripId);
-    setActiveTripId(tripId);
-    setSyncMessage(null);
+    await tripsAdmin.deleteTrip(trip.id);
+    setRefreshKey((k) => k + 1);
   }
 
   async function handleSyncNow(): Promise<void> {
@@ -115,19 +110,28 @@ export function TripsRoute(): React.JSX.Element {
           <h2 className="text-lg font-semibold text-on-surface">Trips</h2>
           <p className="text-xs text-on-surface-variant">Plan and switch between trips.</p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
             onClick={() => void handleSyncNow()}
             disabled={syncing || !tripsAdmin}
+            aria-label="Sync now"
+            title={syncing ? 'Syncing…' : 'Sync now'}
             data-testid="trips-sync-now"
+            className="rounded-md p-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {syncing ? 'Syncing…' : 'Sync now'}
-          </Button>
-          <Button onClick={openCreate} data-testid="trips-new">
-            New trip
-          </Button>
+            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            type="button"
+            onClick={openCreate}
+            aria-label="New trip"
+            title="New trip"
+            data-testid="trips-new"
+            className="rounded-md p-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -137,12 +141,7 @@ export function TripsRoute(): React.JSX.Element {
         </p>
       )}
 
-      <TripsList
-        activeTripId={activeTripId}
-        onSetActive={handleSetActive}
-        onEdit={openEdit}
-        refreshKey={refreshKey}
-      />
+      <TripsList onEdit={openEdit} onDelete={handleDelete} refreshKey={refreshKey} />
 
       <Sheet
         open={sheetOpen}
@@ -151,6 +150,7 @@ export function TripsRoute(): React.JSX.Element {
         title={editing ? `Edit "${editing.name}"` : 'New trip'}
       >
         <TripForm
+          key={editing?.id ?? 'new'}
           {...(editing ? { initial: editing } : {})}
           onSuccess={handleFormSuccess}
           onCancel={() => setSheetOpen(false)}
