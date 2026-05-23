@@ -78,7 +78,7 @@ export function AccommodationsList({ tripId, onView, onEdit, refreshKey = 0, onD
                 onClick={() => onView(acc)}
               >
                 <div className="flex justify-between gap-4">
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 flex-1 min-w-0">
                     <span className="text-sm font-semibold text-on-surface">{acc.name}</span>
                     <span className="text-xs text-on-surface-variant">
                       {acc.checkin} → {acc.checkout}
@@ -92,7 +92,7 @@ export function AccommodationsList({ tripId, onView, onEdit, refreshKey = 0, onD
                       </span>
                     )}
                   </div>
-                  <div className="flex items-start gap-1">
+                  <div className="flex items-start gap-1 shrink-0">
                     {acc.url && (
                       <button
                         type="button"
