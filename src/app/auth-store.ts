@@ -41,14 +41,13 @@ function parseJwt(token: string): JwtPayload | null {
         })
         .join('')
     );
-    return JSON.parse(jsonPayload);
+    return JSON.parse(jsonPayload) as JwtPayload;
   } catch (e) {
     console.error('Failed to parse JWT', e);
     return null;
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
