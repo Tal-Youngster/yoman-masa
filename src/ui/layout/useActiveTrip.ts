@@ -35,10 +35,7 @@ export function useActiveTrip(): UseActiveTrip {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [list, stored] = await Promise.all([
-        tripsStore.list(),
-        kv.get('active_trip_id'),
-      ]);
+      const [list, stored] = await Promise.all([tripsStore.list(), kv.get('active_trip_id')]);
       if (cancelled) return;
       const chosen = pickDefaultActive(list, stored);
       if (chosen !== stored) {
@@ -60,8 +57,7 @@ export function useActiveTrip(): UseActiveTrip {
     [kv],
   );
 
-  const activeTrip =
-    state.trips.find((t) => t.id === state.activeTripId) ?? null;
+  const activeTrip = state.trips.find((t) => t.id === state.activeTripId) ?? null;
 
   return { ...state, activeTrip, setActiveTrip };
 }

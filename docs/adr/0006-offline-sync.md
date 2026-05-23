@@ -54,4 +54,4 @@ Each queued mutation has a client-generated ULID. Replays are safe — the sync 
 
 - Replays of in-flight writes when the page reloads mid-sync: writes must be safe to retry. Achieved by always re-reading and re-applying structured edits.
 - Dexie quota on iOS Safari is small; not a target now but worth noting.
-- A user editing the same file in Obsidian *on the phone* while the app has stale revision is the worst case. Mitigated, not eliminated.
+- A user editing the same file in Obsidian _on the phone_ while the app has stale revision is the worst case. Mitigated, not eliminated.

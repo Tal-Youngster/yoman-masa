@@ -36,21 +36,13 @@ export function TripSwitcher(): React.JSX.Element {
         <span className="truncate max-w-[12ch] text-left">{label}</span>
         <span aria-hidden="true">▾</span>
       </Button>
-      <Sheet
-        open={open}
-        onClose={() => setOpen(false)}
-        side="bottom"
-        title="Switch trip"
-      >
+      <Sheet open={open} onClose={() => setOpen(false)} side="bottom" title="Switch trip">
         {trips.length === 0 ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-on-surface-variant">
               You don&apos;t have any trips yet. Create your first one to get going.
             </p>
-            <Button
-              onClick={() => void handleCreate()}
-              data-testid="trip-switcher-create"
-            >
+            <Button onClick={() => void handleCreate()} data-testid="trip-switcher-create">
               Create trip
             </Button>
           </div>

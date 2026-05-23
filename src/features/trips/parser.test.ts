@@ -76,9 +76,7 @@ describe('parseTrip', () => {
   });
 
   it('tryParseTrip returns null for non-trip files', () => {
-    expect(
-      tryParseTrip('---\ntype: accommodation\nname: Foo\n---\n'),
-    ).toBeNull();
+    expect(tryParseTrip('---\ntype: accommodation\nname: Foo\n---\n')).toBeNull();
     expect(tryParseTrip('no frontmatter here')).toBeNull();
   });
 });
@@ -101,9 +99,22 @@ describe('parseTrip round-trip property', () => {
           notes: fc.string({ maxLength: 50 }),
           body: fc.string({ maxLength: 200 }),
           extras: fc.dictionary(
-            fc.stringMatching(/^[a-z_][a-z0-9_]{0,12}$/).filter(
-              (k) => !['type', 'id', 'slug', 'name', 'start_date', 'end_date', 'home_currency', 'status', 'notes'].includes(k),
-            ),
+            fc
+              .stringMatching(/^[a-z_][a-z0-9_]{0,12}$/)
+              .filter(
+                (k) =>
+                  ![
+                    'type',
+                    'id',
+                    'slug',
+                    'name',
+                    'start_date',
+                    'end_date',
+                    'home_currency',
+                    'status',
+                    'notes',
+                  ].includes(k),
+              ),
             fc.oneof(fc.integer(), fc.string({ maxLength: 20 })),
             { maxKeys: 3 },
           ),

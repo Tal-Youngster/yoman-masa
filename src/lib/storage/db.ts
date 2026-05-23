@@ -74,8 +74,7 @@ export function defineSchema(db: Dexie): void {
   // terminal dead-letter so a v2 row never reaches Drive with the empty path.
   db.version(3)
     .stores({
-      write_queue:
-        'id, entity_type, entity_id, created_at, file_id, resolved_path',
+      write_queue: 'id, entity_type, entity_id, created_at, file_id, resolved_path',
     })
     .upgrade(async (tx) => {
       await tx

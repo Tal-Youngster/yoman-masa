@@ -30,9 +30,7 @@ describe('Shell', () => {
     expect(navs.length).toBeGreaterThanOrEqual(2);
     for (const tab of TABS) {
       // Side nav uses the long label; assert at least one nav contains it.
-      const matches = navs.flatMap((nav) =>
-        within(nav).queryAllByText(tab.label, { exact: true }),
-      );
+      const matches = navs.flatMap((nav) => within(nav).queryAllByText(tab.label, { exact: true }));
       expect(matches.length, `tab ${tab.label}`).toBeGreaterThan(0);
     }
 

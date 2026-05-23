@@ -52,9 +52,7 @@ describe('tripReconciler — fromMarkdown / toMarkdown', () => {
 
   it('fromMarkdown returns null for non-trip content', () => {
     expect(tripReconciler.fromMarkdown('plain text')).toBeNull();
-    expect(
-      tripReconciler.fromMarkdown('---\ntype: accommodation\nname: x\n---\n'),
-    ).toBeNull();
+    expect(tripReconciler.fromMarkdown('---\ntype: accommodation\nname: x\n---\n')).toBeNull();
   });
 
   it('toMarkdown preserves body when originalContent is provided', () => {

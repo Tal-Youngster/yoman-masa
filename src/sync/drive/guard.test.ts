@@ -74,9 +74,9 @@ describe('isUnderPrefix / assertUnderPrefix', () => {
   });
 
   it('accepts a deep path under the prefix', () => {
-    expect(
-      assertUnderPrefix('MyVault/Travel/Trips/japan-2026/Trip.md', PREFIX),
-    ).toBe('MyVault/Travel/Trips/japan-2026/Trip.md');
+    expect(assertUnderPrefix('MyVault/Travel/Trips/japan-2026/Trip.md', PREFIX)).toBe(
+      'MyVault/Travel/Trips/japan-2026/Trip.md',
+    );
   });
 
   it('accepts trailing-slash variants', () => {
@@ -85,35 +85,33 @@ describe('isUnderPrefix / assertUnderPrefix', () => {
   });
 
   it('rejects ".." traversal that escapes the prefix', () => {
-    expect(() =>
-      assertUnderPrefix('MyVault/Travel/../Other/secret', PREFIX),
-    ).toThrow(WriteOutOfScopeError);
-  });
-
-  it('rejects ".." traversal that lands outside the prefix even if it stays in the vault', () => {
-    expect(() =>
-      assertUnderPrefix('MyVault/Travel/Trips/../../Outside.md', PREFIX),
-    ).toThrow(WriteOutOfScopeError);
-  });
-
-  it('rejects sibling directories that share a prefix string but not a segment boundary', () => {
-    // `Travel` vs `TravelClub` — case the guard MUST get right.
-    expect(() =>
-      assertUnderPrefix('MyVault/TravelClub/secret.md', PREFIX),
-    ).toThrow(WriteOutOfScopeError);
-    expect(isUnderPrefix('MyVault/TravelClub/secret.md', PREFIX)).toBe(false);
-  });
-
-  it('rejects an unrelated absolute path', () => {
-    expect(() => assertUnderPrefix('Other/Path/secret.md', PREFIX)).toThrow(
+    expect(() => assertUnderPrefix('MyVault/Travel/../Other/secret', PREFIX)).toThrow(
       WriteOutOfScopeError,
     );
   });
 
+  it('rejects ".." traversal that lands outside the prefix even if it stays in the vault', () => {
+    expect(() => assertUnderPrefix('MyVault/Travel/Trips/../../Outside.md', PREFIX)).toThrow(
+      WriteOutOfScopeError,
+    );
+  });
+
+  it('rejects sibling directories that share a prefix string but not a segment boundary', () => {
+    // `Travel` vs `TravelClub` — case the guard MUST get right.
+    expect(() => assertUnderPrefix('MyVault/TravelClub/secret.md', PREFIX)).toThrow(
+      WriteOutOfScopeError,
+    );
+    expect(isUnderPrefix('MyVault/TravelClub/secret.md', PREFIX)).toBe(false);
+  });
+
+  it('rejects an unrelated absolute path', () => {
+    expect(() => assertUnderPrefix('Other/Path/secret.md', PREFIX)).toThrow(WriteOutOfScopeError);
+  });
+
   it('treats case differences as out of scope (Drive is case-sensitive)', () => {
-    expect(() =>
-      assertUnderPrefix('MyVault/travel/Trips/Trip.md', PREFIX),
-    ).toThrow(WriteOutOfScopeError);
+    expect(() => assertUnderPrefix('MyVault/travel/Trips/Trip.md', PREFIX)).toThrow(
+      WriteOutOfScopeError,
+    );
   });
 
   it('handles unicode-normalized variants of the prefix', () => {
@@ -134,12 +132,8 @@ describe('isUnderPrefix / assertUnderPrefix', () => {
   });
 
   it('rejects an empty prefix at runtime (config bug)', () => {
-    expect(() => assertUnderPrefix('MyVault/Travel/Trip.md', '')).toThrow(
-      WriteOutOfScopeError,
-    );
-    expect(() => assertUnderPrefix('MyVault/Travel/Trip.md', '/')).toThrow(
-      WriteOutOfScopeError,
-    );
+    expect(() => assertUnderPrefix('MyVault/Travel/Trip.md', '')).toThrow(WriteOutOfScopeError);
+    expect(() => assertUnderPrefix('MyVault/Travel/Trip.md', '/')).toThrow(WriteOutOfScopeError);
   });
 });
 

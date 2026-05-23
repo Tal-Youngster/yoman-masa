@@ -9,19 +9,19 @@ Phone + laptop. Mobile-first. Installable / standalone. No backend (per ADR-0001
 
 ## Decision
 
-| Concern        | Choice                                       |
-| -------------- | -------------------------------------------- |
-| Build / dev    | Vite 6                                       |
-| Framework      | React 19                                     |
-| Language       | TypeScript 5.7, `strict`                     |
-| Styling        | Tailwind 4 (CSS-based config, Vite plugin)   |
-| Routing        | TanStack Router (code-based to start)        |
-| Server state   | TanStack Query + Dexie persister             |
-| Client state   | Zustand                                      |
-| Forms          | React Hook Form + Zod resolvers              |
-| PWA            | `vite-plugin-pwa` (Workbox)                  |
-| Maps           | MapLibre GL + Protomaps PMTiles (ADR-0005)   |
-| Tests          | Vitest, fast-check (property tests)          |
+| Concern      | Choice                                     |
+| ------------ | ------------------------------------------ |
+| Build / dev  | Vite 6                                     |
+| Framework    | React 19                                   |
+| Language     | TypeScript 5.7, `strict`                   |
+| Styling      | Tailwind 4 (CSS-based config, Vite plugin) |
+| Routing      | TanStack Router (code-based to start)      |
+| Server state | TanStack Query + Dexie persister           |
+| Client state | Zustand                                    |
+| Forms        | React Hook Form + Zod resolvers            |
+| PWA          | `vite-plugin-pwa` (Workbox)                |
+| Maps         | MapLibre GL + Protomaps PMTiles (ADR-0005) |
+| Tests        | Vitest, fast-check (property tests)        |
 
 ## Alternatives considered
 

@@ -18,9 +18,7 @@ export function renderApp(opts: RenderAppOptions = {}): RenderResult & {
 } {
   const services: AppServices = {
     kv: createMemoryKVStore(
-      opts.initialActiveTripId !== undefined
-        ? { active_trip_id: opts.initialActiveTripId }
-        : {},
+      opts.initialActiveTripId !== undefined ? { active_trip_id: opts.initialActiveTripId } : {},
     ),
     trips: createMockTripsStore(opts.trips ?? []),
   };

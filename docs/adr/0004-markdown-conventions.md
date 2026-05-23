@@ -52,7 +52,7 @@ location:
   lat: 21.0333
   lng: 105.8542
 url: https://airbnb.com/...
-host: { name: Linh, phone: "+84..." }
+host: { name: Linh, phone: '+84...' }
 attachments: [.travel/attachments/ab12...pdf]
 ---
 

@@ -1,4 +1,12 @@
-import type { TripId, AccommodationId, PlaceId, ExpenseId, TaskId, ShoppingItemId, ArticleId } from '@/domain/ids';
+import type {
+  TripId,
+  AccommodationId,
+  PlaceId,
+  ExpenseId,
+  TaskId,
+  ShoppingItemId,
+  ArticleId,
+} from '@/domain/ids';
 
 /** Discriminant used by the write queue and file_meta tables.
  *

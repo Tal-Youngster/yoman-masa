@@ -26,9 +26,7 @@ export function Card({
       {(title || description) && (
         <header className="mb-3">
           {title && <h3 className="text-sm font-semibold text-on-surface">{title}</h3>}
-          {description && (
-            <p className="mt-0.5 text-xs text-on-surface-variant">{description}</p>
-          )}
+          {description && <p className="mt-0.5 text-xs text-on-surface-variant">{description}</p>}
         </header>
       )}
       {children && <div className="text-sm text-on-surface">{children}</div>}

@@ -97,7 +97,7 @@ Provide a reusable, round-trip-safe markdown utility: parse and serialize YAML f
 ### Scope (in)
 
 - `parseFrontmatter(content: string): { frontmatter: Record<string, unknown>; body: string }` — empty frontmatter → `{}`; missing frontmatter → empty object and the full content as `body`.
-- `serializeFrontmatter(frontmatter: Record<string, unknown>, body: string): string` — emits `---\n<yaml>\n---\n<body>`; omits the block if `frontmatter` is empty *and* it was empty on input.
+- `serializeFrontmatter(frontmatter: Record<string, unknown>, body: string): string` — emits `---\n<yaml>\n---\n<body>`; omits the block if `frontmatter` is empty _and_ it was empty on input.
 - Round-trip invariant: for any input the app might encounter, `serialize(parse(x))` equals `x` byte-for-byte (LF normalization is acceptable, but documented and reversible).
 - Line-level patching primitives:
   - `findLineByBlockRef(body: string, blockRef: string): { lineIndex, line } | null`
@@ -653,7 +653,7 @@ A focused editor over checkbox + Dataview inline-field markdown (per ADR-0004).
 ### Sharp edges
 
 - Same line-level patching invariants as S10.
-- `(qty::)` and `(cost::)` are Dataview inline fields with parens; the bare `qty::` form is *not* used (it doesn't render inside text).
+- `(qty::)` and `(cost::)` are Dataview inline fields with parens; the bare `qty::` form is _not_ used (it doesn't render inside text).
 
 ### Deliverables
 
@@ -799,9 +799,16 @@ export function serializeFrontmatter(
   opts?: { lineEnding?: 'lf' | 'crlf'; alwaysEmit?: boolean },
 ): string;
 
-export function findLineByBlockRef(body: string, blockRef: string): { lineIndex: number; line: string } | null;
+export function findLineByBlockRef(
+  body: string,
+  blockRef: string,
+): { lineIndex: number; line: string } | null;
 export function replaceLine(body: string, blockRef: string, newLine: string): string;
-export function insertLine(body: string, newLine: string, anchor?: { afterBlockRef: string }): string;
+export function insertLine(
+  body: string,
+  newLine: string,
+  anchor?: { afterBlockRef: string },
+): string;
 export function removeLine(body: string, blockRef: string): string;
 
 export class AmbiguousBlockRefError extends Error {}
@@ -821,11 +828,17 @@ export async function listTripsByStatus(s: TripStatus, db?: TravelDB): Promise<T
 // file_id=null and resolved_path=''. The Dexie WriteQueue adapter
 // dead-letters rows with resolved_path === ''.
 export interface WriteQueueItem {
-  id: string; entity_type: EntityType; entity_id: string; op: WriteOp;
-  payload: unknown; base_revision: string | null;
-  file_id: string | null;       // ADDED v3 (S5)
-  resolved_path: string;        // ADDED v3 (S5)
-  attempts: number; last_error: string | null; created_at: number; // epoch ms
+  id: string;
+  entity_type: EntityType;
+  entity_id: string;
+  op: WriteOp;
+  payload: unknown;
+  base_revision: string | null;
+  file_id: string | null; // ADDED v3 (S5)
+  resolved_path: string; // ADDED v3 (S5)
+  attempts: number;
+  last_error: string | null;
+  created_at: number; // epoch ms
 }
 export async function enqueueWrite(item: EnqueueInput, db?: TravelDB): Promise<void>;
 // Destructive: pops the head AND removes it. Kept for Phase-1 callers.
@@ -838,7 +851,11 @@ export async function recordQueueFailure(id: string, error: string, db?: TravelD
 export async function deleteQueueItem(id: string, db?: TravelDB): Promise<void>;
 
 export async function getKV<K extends KVKey>(key: K, db?: TravelDB): Promise<KVValue<K> | null>;
-export async function setKV<K extends KVKey>(key: K, value: KVValue<K>, db?: TravelDB): Promise<void>;
+export async function setKV<K extends KVKey>(
+  key: K,
+  value: KVValue<K>,
+  db?: TravelDB,
+): Promise<void>;
 export async function deleteKV(key: KVKey, db?: TravelDB): Promise<void>;
 ```
 
@@ -866,12 +883,16 @@ export interface Reconciler<Entity, Payload = unknown> {
 }
 
 export interface WriteQueueItem<P = unknown> {
-  readonly id: string; readonly entityType: string; readonly entityId: string;
-  readonly op: WriteOp; readonly payload: P;
+  readonly id: string;
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly op: WriteOp;
+  readonly payload: P;
   readonly baseRevision: string | null;
-  readonly fileId: string | null;         // NEW — null on first-time creates
-  readonly resolvedPath: string;          // NEW — re-checked by WRITE_ALLOWED_PREFIX at write time
-  readonly attempts: number; readonly lastError: string | null;
+  readonly fileId: string | null; // NEW — null on first-time creates
+  readonly resolvedPath: string; // NEW — re-checked by WRITE_ALLOWED_PREFIX at write time
+  readonly attempts: number;
+  readonly lastError: string | null;
   readonly createdAt: string; // ISO
 }
 export interface WriteQueue {
@@ -891,6 +912,7 @@ export interface DexieWriteQueue extends WriteQueue {
 ```
 
 S3's deviations from the original spec:
+
 - Added `startChangeToken()` (Drive `changes.list` needs an initial page token).
 - `Reconciler.applyEdit` receives the `WriteQueueItem`, not the bare entity, so it can see `baseRevision` and the original `payload`.
 - Worker entry point is `drainAll(opts)` over a parameterized bundle (registry + queue + client + guard); no thinner `syncNow()` facade yet.
@@ -907,10 +929,11 @@ Wraps S2's `getKV` / `setKV` / `deleteKV` to satisfy S4's `KVStore` interface. `
 ### Integration: S2 ↔ S3 write queue (resolved in S5)
 
 Resolved in S5 by extending S2's `write_queue` schema (option 1, as recommended):
+
 - **v3 migration** adds `file_id: string | null` and `resolved_path: string` columns and indexes both. The upgrade hook backfills pre-v3 rows with `file_id=null` and `resolved_path=''`. The migration test covers v1→v3, v2→v3 (with a synthetic legacy row), and a fresh-DB-at-v3 case.
 - **`enqueueWrite`** now requires both fields. The `EnqueueInput` type enforces this at the type system.
 - **`peekNextPending` + `dequeueById`** are non-destructive helpers added alongside the destructive `drainNext` (kept as-is so existing Phase-1 callers/tests stay green).
-- **Dexie adapter at `src/sync/queue/dexie-queue.ts`** translates snake_case rows ↔ camelCase `WriteQueueItem`, and epoch ms ↔ ISO `createdAt`. It implements `WriteQueue` for the S3 worker. `drainNext` claims (returns + hides) without deleting; `markApplied(id)` / terminal `markFailed(id, _, true)` delete; non-terminal `markFailed` bumps attempts via `recordQueueFailure`. Rows with empty `resolved_path` (the v2 migration sentinel) are silently dead-lettered to prevent ever forwarding them to Drive.
+- **Dexie adapter at `src/sync/queue/dexie-queue.ts`** translates snake*case rows ↔ camelCase `WriteQueueItem`, and epoch ms ↔ ISO `createdAt`. It implements `WriteQueue` for the S3 worker. `drainNext` claims (returns + hides) without deleting; `markApplied(id)` / terminal `markFailed(id, *, true)`delete; non-terminal`markFailed`bumps attempts via`recordQueueFailure`. Rows with empty `resolved_path` (the v2 migration sentinel) are silently dead-lettered to prevent ever forwarding them to Drive.
 - **`WriteQueue.markApplied` (optional)** added to the S3 surface for queues that need an explicit success confirmation. The worker calls it after `applied` / `no-op` outcomes; `MemoryWriteQueue` implements it as a no-op for backward compatibility (its `drainNext` already removes the item from the visible queue).
 
 Feature slices import from these surfaces and **do not** add competing utilities in their own folders.

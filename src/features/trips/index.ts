@@ -1,14 +1,5 @@
-export {
-  parseTrip,
-  tryParseTrip,
-  serializeTrip,
-  type ParsedTrip,
-} from './parser';
-export {
-  deriveSlug,
-  isSlugUnique,
-  suggestUniqueSlug,
-} from './slug';
+export { parseTrip, tryParseTrip, serializeTrip, type ParsedTrip } from './parser';
+export { deriveSlug, isSlugUnique, suggestUniqueSlug } from './slug';
 export {
   listTripsAll,
   listTripsByStatus,

@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  deleteDatabase,
-  makeTestDb,
-} from '@/lib/storage/test-helpers';
+import { deleteDatabase, makeTestDb } from '@/lib/storage/test-helpers';
 import type { TravelDB } from '@/lib/storage';
 import { enqueueWrite, peekQueue } from '@/lib/storage';
 
@@ -26,9 +23,7 @@ afterEach(async () => {
   await deleteDatabase(db.name);
 });
 
-function makeItem(
-  overrides: Partial<WriteQueueItem> & { id: string },
-): WriteQueueItem {
+function makeItem(overrides: Partial<WriteQueueItem> & { id: string }): WriteQueueItem {
   return {
     entityType: 'trip',
     entityId: 'trp_test',
@@ -107,9 +102,7 @@ describe('createDexieWriteQueue', () => {
       db,
     );
     const queue = createDexieWriteQueue(db);
-    await queue.enqueue(
-      makeItem({ id: 'GOOD', createdAt: '2026-04-01T00:00:01.000Z' }),
-    );
+    await queue.enqueue(makeItem({ id: 'GOOD', createdAt: '2026-04-01T00:00:01.000Z' }));
 
     // Drain silently dequeues the legacy row and returns the healthy one.
     const head = await queue.drainNext();

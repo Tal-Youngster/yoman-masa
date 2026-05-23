@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { TABS } from './tabs';
 import { cn } from '../components/cn';
+import { TabIcon } from './SideNav';
 
 export function BottomNav(): React.JSX.Element {
   return (
@@ -21,9 +22,7 @@ export function BottomNav(): React.JSX.Element {
               className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] text-on-surface-variant transition-colors"
               activeProps={{ 'aria-current': 'page', className: 'text-primary' }}
             >
-              <span aria-hidden="true" className="text-base leading-none">
-                {tab.icon}
-              </span>
+              <TabIcon name={tab.icon} className="w-5 h-5 shrink-0" />
               <span>{tab.shortLabel}</span>
             </Link>
           </li>

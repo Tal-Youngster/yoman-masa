@@ -24,7 +24,7 @@ describe('Button', () => {
       </Button>,
     );
     const btn = screen.getByRole('button', { name: 'Delete' });
-    expect(btn.className).toMatch(/bg-red-600/);
+    expect(btn.className).toMatch(/bg-error/);
     expect(btn.className).toMatch(/h-12/);
   });
 

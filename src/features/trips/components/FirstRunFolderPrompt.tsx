@@ -54,11 +54,7 @@ export function FirstRunFolderPrompt({ onPicked }: FirstRunFolderPromptProps): R
         </p>
       )}
       <div className="mt-2 flex justify-end">
-        <Button
-          onClick={() => void handlePick()}
-          disabled={busy}
-          data-testid="first-run-pick"
-        >
+        <Button onClick={() => void handlePick()} disabled={busy} data-testid="first-run-pick">
           {busy ? 'Opening picker…' : 'Pick folder'}
         </Button>
       </div>

@@ -86,9 +86,9 @@ export function TripsRoute(): React.JSX.Element {
     return (
       <div className="flex flex-col gap-4">
         <header>
-          <h2 className="text-lg font-semibold text-slate-100">Trips</h2>
+          <h2 className="text-lg font-semibold text-on-surface">Trips</h2>
         </header>
-        <p className="text-sm text-slate-400">Loading…</p>
+        <p className="text-sm text-on-surface-variant">Loading…</p>
       </div>
     );
   }
@@ -97,7 +97,7 @@ export function TripsRoute(): React.JSX.Element {
     return (
       <div className="flex flex-col gap-4">
         <header>
-          <h2 className="text-lg font-semibold text-slate-100">Trips</h2>
+          <h2 className="text-lg font-semibold text-on-surface">Trips</h2>
         </header>
         <FirstRunFolderPrompt
           onPicked={(folder) => {
@@ -112,8 +112,8 @@ export function TripsRoute(): React.JSX.Element {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">Trips</h2>
-          <p className="text-xs text-slate-400">Plan and switch between trips.</p>
+          <h2 className="text-lg font-semibold text-on-surface">Trips</h2>
+          <p className="text-xs text-on-surface-variant">Plan and switch between trips.</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -132,7 +132,7 @@ export function TripsRoute(): React.JSX.Element {
       </div>
 
       {syncMessage && (
-        <p className="text-xs text-slate-400" data-testid="trips-sync-status">
+        <p className="text-xs text-on-surface-variant" data-testid="trips-sync-status">
           {syncMessage}
         </p>
       )}

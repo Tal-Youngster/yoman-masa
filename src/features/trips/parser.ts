@@ -11,11 +11,7 @@
  * Obsidian survive an app write.
  */
 
-import {
-  parseFrontmatter,
-  serializeFrontmatter,
-  type LineEnding,
-} from '@/lib/markdown';
+import { parseFrontmatter, serializeFrontmatter, type LineEnding } from '@/lib/markdown';
 import { Trip } from '@/domain/trip';
 
 export interface ParsedTrip {

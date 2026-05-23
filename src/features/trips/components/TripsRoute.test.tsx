@@ -41,9 +41,7 @@ interface HarnessOptions {
   drivePickFolder?: () => Promise<{ id: string; name: string; path: string }>;
 }
 
-function makeAdminStub(
-  overrides: Partial<TripsAdminService> = {},
-): TripsAdminService & {
+function makeAdminStub(overrides: Partial<TripsAdminService> = {}): TripsAdminService & {
   calls: {
     createTrip: Array<Parameters<TripsAdminService['createTrip']>[0]>;
     updateTrip: Array<Parameters<TripsAdminService['updateTrip']>[0]>;
@@ -133,7 +131,9 @@ async function renderRoute(opts: HarnessOptions = {}): Promise<{
   // tests we want the per-test db. Patch the queries module's listTripsAll
   // for the duration of this render.
   const queriesModule = await import('../queries');
-  vi.spyOn(queriesModule, 'listTripsAll').mockImplementation(() => Promise.resolve(opts.seedTrips ?? []));
+  vi.spyOn(queriesModule, 'listTripsAll').mockImplementation(() =>
+    Promise.resolve(opts.seedTrips ?? []),
+  );
 
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const result = render(

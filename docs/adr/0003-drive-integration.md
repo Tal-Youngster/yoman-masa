@@ -30,6 +30,6 @@ The app must read and write existing files in the user's Obsidian vault (Tasks.m
 
 ## Sharp edges
 
-- Drive `update` doesn't honor `If-Match` on file *content* — conflict detection is "re-GET headRevisionId after write, retry if it changed mid-flight". Bounded retry budget (3); after that, surface to user.
+- Drive `update` doesn't honor `If-Match` on file _content_ — conflict detection is "re-GET headRevisionId after write, retry if it changed mid-flight". Bounded retry budget (3); after that, surface to user.
 - Incognito mode and tracking-protection settings can break silent re-auth.
 - The safety guard is the only thing standing between a bug and arbitrary writes to the user's Drive. Cover it with tests.

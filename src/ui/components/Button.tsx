@@ -10,10 +10,12 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary: 'bg-primary text-on-primary hover:bg-primary-container active:bg-on-primary-container rounded-full',
+  primary:
+    'bg-primary text-on-primary hover:bg-primary-container active:bg-on-primary-container rounded-full',
   secondary:
     'bg-surface-container text-on-surface border border-outline hover:bg-surface-container-high active:bg-surface-container',
-  ghost: 'bg-transparent text-on-surface-variant hover:bg-surface-container/60 active:bg-surface-container',
+  ghost:
+    'bg-transparent text-on-surface-variant hover:bg-surface-container/60 active:bg-surface-container',
   danger: 'bg-error text-on-error hover:bg-error/90 active:bg-error/80',
 };
 

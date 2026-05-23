@@ -22,17 +22,11 @@ export async function listTripsAll(db?: TravelDB): Promise<Trip[]> {
   return listTrips(db);
 }
 
-export async function listTripsByStatus(
-  status: TripStatus,
-  db?: TravelDB,
-): Promise<Trip[]> {
+export async function listTripsByStatus(status: TripStatus, db?: TravelDB): Promise<Trip[]> {
   return storageListTripsByStatus(status, db);
 }
 
-export async function getTripBySlug(
-  slug: string,
-  db?: TravelDB,
-): Promise<Trip | undefined> {
+export async function getTripBySlug(slug: string, db?: TravelDB): Promise<Trip | undefined> {
   const handle = db ?? defaultDb;
   return handle.trips.where('slug').equals(slug).first();
 }
@@ -41,10 +35,7 @@ export async function getActiveTripId(db?: TravelDB): Promise<TripId | null> {
   return getKV('active_trip_id', db);
 }
 
-export async function setActiveTripId(
-  tripId: TripId | null,
-  db?: TravelDB,
-): Promise<void> {
+export async function setActiveTripId(tripId: TripId | null, db?: TravelDB): Promise<void> {
   if (tripId === null) {
     await deleteKV('active_trip_id', db);
     return;
