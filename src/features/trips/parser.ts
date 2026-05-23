@@ -25,6 +25,9 @@ export interface ParsedTrip {
   hasFrontmatter: boolean;
 }
 
+// `status` was dropped from the canonical Trip model — derived from dates now.
+// Existing vault files that still carry a `status:` line are preserved as
+// extra frontmatter on round-trip rather than being scrubbed.
 const TRIP_FRONTMATTER_KEYS = [
   'type',
   'id',
@@ -33,7 +36,7 @@ const TRIP_FRONTMATTER_KEYS = [
   'start_date',
   'end_date',
   'home_currency',
-  'status',
+  'country_codes',
   'notes',
 ] as const;
 type TripKey = (typeof TRIP_FRONTMATTER_KEYS)[number];

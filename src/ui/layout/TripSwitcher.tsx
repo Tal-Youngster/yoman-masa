@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '../components/Button';
 import { Sheet } from '../components/Sheet';
+import { DISPLAY_STATUS_LABELS, getDisplayStatus } from '@/features/trips/status';
 import { useActiveTrip } from './useActiveTrip';
 
 export function TripSwitcher(): React.JSX.Element {
@@ -67,7 +68,8 @@ export function TripSwitcher(): React.JSX.Element {
                     <span className="flex flex-col">
                       <span className="font-medium">{trip.name}</span>
                       <span className="text-xs text-on-surface-variant">
-                        {trip.start_date} → {trip.end_date} · {trip.status}
+                        {trip.start_date} → {trip.end_date} ·{' '}
+                        {DISPLAY_STATUS_LABELS[getDisplayStatus(trip)]}
                       </span>
                     </span>
                     {isActive && <span aria-hidden="true">✓</span>}

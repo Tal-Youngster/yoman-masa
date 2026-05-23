@@ -1,6 +1,24 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ArrowUp, ArrowDown, Settings2, Check } from 'lucide-react';
+import { GripVertical, Settings2, Check } from 'lucide-react';
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Sheet } from '../components/Sheet';
 import { TABS, type TabDef } from './tabs';
 import { useNavStore } from '../../lib/navStore';
@@ -22,22 +40,21 @@ export function MoreNavSheet({ open, onClose }: MoreNavSheetProps): React.JSX.El
   const pinnedTabs = sortedTabs.slice(0, 4);
   const moreTabs = sortedTabs.slice(4);
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const newOrder = [...tabOrder];
-    const temp = newOrder[index - 1];
-    newOrder[index - 1] = newOrder[index];
-    newOrder[index] = temp;
-    setTabOrder(newOrder);
-  };
+  // TouchSensor delay prevents drag from hijacking scroll on mobile; keyboard sensor keeps reordering
+  // reachable for users who can't (or don't want to) drag.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
-  const handleMoveDown = (index: number) => {
-    if (index === tabOrder.length - 1) return;
-    const newOrder = [...tabOrder];
-    const temp = newOrder[index + 1];
-    newOrder[index + 1] = newOrder[index];
-    newOrder[index] = temp;
-    setTabOrder(newOrder);
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = tabOrder.indexOf(active.id as TabDef['to']);
+    const newIndex = tabOrder.indexOf(over.id as TabDef['to']);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setTabOrder(arrayMove(tabOrder, oldIndex, newIndex));
   };
 
   const handleClose = () => {
@@ -75,45 +92,36 @@ export function MoreNavSheet({ open, onClose }: MoreNavSheetProps): React.JSX.El
         </div>
 
         {isEditing ? (
-          <div className="flex flex-col gap-6">
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
-                Pinned to Navbar (Max 4)
-              </h3>
-              <ul className="flex flex-col gap-1">
-                {pinnedTabs.map((tab, i) => (
-                  <EditListItem
-                    key={tab.to}
-                    tab={tab}
-                    onMoveUp={() => handleMoveUp(i)}
-                    onMoveDown={() => handleMoveDown(i)}
-                    isFirst={i === 0}
-                    isLast={false}
-                  />
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
-                In More Menu
-              </h3>
-              <ul className="flex flex-col gap-1">
-                {moreTabs.map((tab, i) => {
-                  const globalIndex = i + 4;
-                  return (
-                    <EditListItem
-                      key={tab.to}
-                      tab={tab}
-                      onMoveUp={() => handleMoveUp(globalIndex)}
-                      onMoveDown={() => handleMoveDown(globalIndex)}
-                      isFirst={false}
-                      isLast={globalIndex === tabOrder.length - 1}
-                    />
-                  );
-                })}
-              </ul>
-            </div>
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={tabOrder} strategy={verticalListSortingStrategy}>
+              <div className="flex flex-col gap-6">
+                <div>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
+                    Pinned to Navbar (Max 4)
+                  </h3>
+                  <ul className="flex flex-col gap-1">
+                    {pinnedTabs.map((tab) => (
+                      <SortableTabItem key={tab.to} tab={tab} />
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
+                    In More Menu
+                  </h3>
+                  <ul className="flex flex-col gap-1">
+                    {moreTabs.map((tab) => (
+                      <SortableTabItem key={tab.to} tab={tab} />
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </SortableContext>
+          </DndContext>
         ) : (
           <ul className="flex flex-col gap-1">
             {moreTabs.map((tab) => (
@@ -139,45 +147,35 @@ export function MoreNavSheet({ open, onClose }: MoreNavSheetProps): React.JSX.El
   );
 }
 
-function EditListItem({
-  tab,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
-}: {
-  tab: TabDef;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  isFirst: boolean;
-  isLast: boolean;
-}) {
+function SortableTabItem({ tab }: { tab: TabDef }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: tab.to,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1 : 'auto',
+  };
+
   return (
-    <li className="flex items-center justify-between rounded-xl bg-surface-container-low px-4 py-2">
-      <div className="flex items-center gap-3 text-on-surface">
-        <TabIcon name={tab.icon} className="w-5 h-5 text-on-surface-variant" />
-        <span className="text-sm font-medium">{tab.label}</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={onMoveUp}
-          disabled={isFirst}
-          className="rounded p-1.5 text-on-surface-variant hover:bg-surface-container-highest disabled:opacity-30"
-          aria-label={`Move ${tab.label} up`}
-        >
-          <ArrowUp className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={onMoveDown}
-          disabled={isLast}
-          className="rounded p-1.5 text-on-surface-variant hover:bg-surface-container-highest disabled:opacity-30"
-          aria-label={`Move ${tab.label} down`}
-        >
-          <ArrowDown className="w-4 h-4" />
-        </button>
-      </div>
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 rounded-xl bg-surface-container-low px-2 py-2"
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="touch-none cursor-grab rounded p-1.5 text-on-surface-variant hover:bg-surface-container-highest active:cursor-grabbing"
+        aria-label={`Reorder ${tab.label}`}
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <TabIcon name={tab.icon} className="w-5 h-5 text-on-surface-variant" />
+      <span className="text-sm font-medium text-on-surface">{tab.label}</span>
     </li>
   );
 }

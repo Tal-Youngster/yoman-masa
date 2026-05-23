@@ -31,7 +31,6 @@ import {
   getFileMeta,
   getFileMetaByEntity,
   listTrips,
-  listTripsByStatus,
   peekNextPending,
   peekQueue,
   placesByTrip,
@@ -58,7 +57,6 @@ const makeTrip = (overrides: Partial<Parameters<typeof newTrip>[0]> = {}) =>
     start_date: isoDate('2026-06-01'),
     end_date: isoDate('2026-07-15'),
     home_currency: currency('USD'),
-    status: 'active',
     ...overrides,
   });
 
@@ -79,15 +77,6 @@ describe('Trip CRUD', () => {
     await upsertTrip(trip, db);
     const back = await getTrip(trip.id, db);
     expect(back).toEqual(trip);
-  });
-
-  it('listTripsByStatus filters correctly', async () => {
-    await upsertTrip(makeTrip({ slug: 'a', status: 'active' }), db);
-    await upsertTrip(makeTrip({ slug: 'b', status: 'planned' }), db);
-    await upsertTrip(makeTrip({ slug: 'c', status: 'planned' }), db);
-
-    const planned = await listTripsByStatus('planned', db);
-    expect(planned.map((t) => t.slug).sort()).toEqual(['b', 'c']);
   });
 
   it('deleteTrip removes the row', async () => {

@@ -20,7 +20,6 @@ const sample = newTrip({
   start_date: isoDate('2026-09-01'),
   end_date: isoDate('2026-09-15'),
   home_currency: currency('USD'),
-  status: 'planned',
 });
 
 function tripItem(
@@ -181,7 +180,7 @@ describe('tripReconciler integration — FakeDrive + worker', () => {
     const externallyEdited = serializeTrip(sample, 'Original notes\nObsidian addition\n');
     drive.externalEdit(fileId, externallyEdited);
 
-    const renamed = { ...sample, status: 'active' as const };
+    const renamed = { ...sample, name: 'Kyoto 2026 (renamed)' };
     await queue.enqueue(
       tripItem({
         op: 'update',
@@ -202,7 +201,7 @@ describe('tripReconciler integration — FakeDrive + worker', () => {
 
     const { content } = await drive.getContent(fileId);
     const parsed = parseTrip(content);
-    expect(parsed.trip.status).toBe('active');
+    expect(parsed.trip.name).toBe('Kyoto 2026 (renamed)');
     // The Obsidian addition survives our write (per ADR-0006).
     expect(parsed.body).toContain('Obsidian addition');
   });
@@ -236,7 +235,7 @@ describe('tripReconciler integration — FakeDrive + worker', () => {
     await queue.enqueue(
       tripItem({
         op: 'update',
-        payload: { trip: { ...sample, status: 'completed' as const } },
+        payload: { trip: { ...sample, name: 'Kyoto 2026 (final)' } },
         fileId,
         baseRevision: base,
         resolvedPath: filePath,

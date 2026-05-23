@@ -2,7 +2,6 @@ export { parseTrip, tryParseTrip, serializeTrip, type ParsedTrip } from './parse
 export { deriveSlug, isSlugUnique, suggestUniqueSlug } from './slug';
 export {
   listTripsAll,
-  listTripsByStatus,
   getTripBySlug,
   getActiveTripId,
   setActiveTripId,

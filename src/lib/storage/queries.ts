@@ -1,4 +1,4 @@
-import type { Trip, TripStatus } from '@/domain/trip';
+import type { Trip } from '@/domain/trip';
 import type { Accommodation, AccommodationStatus } from '@/domain/accommodation';
 import type { Place } from '@/domain/place';
 import type { Expense } from '@/domain/expense';
@@ -47,10 +47,6 @@ export async function deleteTrip(id: TripId, db?: DB): Promise<void> {
 
 export async function listTrips(db?: DB): Promise<Trip[]> {
   return dbHandle(db).trips.toArray();
-}
-
-export async function listTripsByStatus(s: TripStatus, db?: DB): Promise<Trip[]> {
-  return dbHandle(db).trips.where('status').equals(s).toArray();
 }
 
 // ────────────────────────────────────────────────────────────────────────────

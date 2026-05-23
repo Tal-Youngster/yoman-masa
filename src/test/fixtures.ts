@@ -9,7 +9,7 @@ export function makeTrip(overrides: Partial<Trip> = {}): Trip {
     start_date: '2026-09-01' as Trip['start_date'],
     end_date: '2026-09-21' as Trip['end_date'],
     home_currency: 'USD' as Trip['home_currency'],
-    status: 'active',
+    country_codes: [],
     notes: '',
   };
   return { ...base, ...overrides };

@@ -3,8 +3,10 @@ import { TripId, newTripId } from './ids';
 import { IsoDate } from './dates';
 import { Currency } from './money';
 
-export const TripStatus = z.enum(['planned', 'active', 'completed', 'archived']);
-export type TripStatus = z.infer<typeof TripStatus>;
+export const CountryCode = z
+  .string()
+  .regex(/^[A-Z]{2}$/, 'ISO 3166-1 alpha-2 (e.g. "AR", "JP")');
+export type CountryCode = z.infer<typeof CountryCode>;
 
 export const Trip = z
   .object({
@@ -15,7 +17,7 @@ export const Trip = z
     start_date: IsoDate,
     end_date: IsoDate,
     home_currency: Currency,
-    status: TripStatus,
+    country_codes: z.array(CountryCode).default([]),
     notes: z.string().default(''),
   })
   .refine((t) => t.start_date <= t.end_date, {

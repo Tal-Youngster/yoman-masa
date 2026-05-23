@@ -10,25 +10,32 @@ import {
   db as defaultDb,
   getKV,
   listTrips,
-  listTripsByStatus as storageListTripsByStatus,
   setKV,
   deleteKV,
 } from '@/lib/storage';
 import type { TravelDB } from '@/lib/storage';
-import type { Trip, TripStatus } from '@/domain/trip';
+import type { Trip } from '@/domain/trip';
 import type { TripId } from '@/domain/ids';
 
-export async function listTripsAll(db?: TravelDB): Promise<Trip[]> {
-  return listTrips(db);
+/**
+ * Backfill defaults for fields added after a trip was first persisted.
+ * Zod defaults only apply at parse time, so rows that pre-date the field
+ * come back from Dexie with the field as `undefined`. Normalizing here
+ * keeps every UI consumer free of `?? []` boilerplate.
+ */
+function normalizeTrip(t: Trip): Trip {
+  return { ...t, country_codes: t.country_codes ?? [] };
 }
 
-export async function listTripsByStatus(status: TripStatus, db?: TravelDB): Promise<Trip[]> {
-  return storageListTripsByStatus(status, db);
+export async function listTripsAll(db?: TravelDB): Promise<Trip[]> {
+  const trips = await listTrips(db);
+  return trips.map(normalizeTrip);
 }
 
 export async function getTripBySlug(slug: string, db?: TravelDB): Promise<Trip | undefined> {
   const handle = db ?? defaultDb;
-  return handle.trips.where('slug').equals(slug).first();
+  const trip = await handle.trips.where('slug').equals(slug).first();
+  return trip ? normalizeTrip(trip) : undefined;
 }
 
 export async function getActiveTripId(db?: TravelDB): Promise<TripId | null> {

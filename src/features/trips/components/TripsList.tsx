@@ -1,33 +1,47 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 
 import { Button } from '@/ui/components';
 import { Card } from '@/ui/components';
-import type { Trip, TripStatus } from '@/domain/trip';
+import { Sheet } from '@/ui/components';
+import type { Trip } from '@/domain/trip';
 import { listTripsAll } from '../queries';
+import { flagEmoji } from '../countries';
+import {
+  DISPLAY_STATUS_LABELS,
+  getDisplayStatus,
+  type DisplayStatus,
+} from '../status';
+import { StatusPill } from './StatusPill';
 
-type Filter = TripStatus | 'all';
-const FILTERS: Filter[] = ['planned', 'active', 'completed', 'archived', 'all'];
+type Filter = DisplayStatus | 'all';
+const FILTERS: Filter[] = ['all', 'planned', 'active', 'completed'];
+const FILTER_LABELS: Record<Filter, string> = {
+  all: 'All',
+  planned: DISPLAY_STATUS_LABELS.planned,
+  active: DISPLAY_STATUS_LABELS.active,
+  completed: DISPLAY_STATUS_LABELS.completed,
+};
 
 export interface TripsListProps {
-  /** Active trip id from kv; rows highlight when matching. */
-  activeTripId: string | null;
-  /** Called when the user clicks "Set active" on a row. */
-  onSetActive: (tripId: string) => Promise<void> | void;
   /** Called when the user clicks the "Edit" affordance. */
   onEdit: (trip: Trip) => void;
+  /** Called when the user confirms deletion. */
+  onDelete: (trip: Trip) => Promise<void> | void;
   /** Refresh tick — bump to re-fetch (e.g. after a create). */
   refreshKey?: number;
 }
 
 export function TripsList({
-  activeTripId,
-  onSetActive,
   onEdit,
+  onDelete,
   refreshKey = 0,
 }: TripsListProps): React.JSX.Element {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<Trip | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,8 +59,19 @@ export function TripsList({
 
   const filtered = useMemo(() => {
     if (filter === 'all') return trips;
-    return trips.filter((t) => t.status === filter);
+    return trips.filter((t) => getDisplayStatus(t) === filter);
   }, [trips, filter]);
+
+  async function confirmDelete(): Promise<void> {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await onDelete(pendingDelete);
+      setPendingDelete(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -66,7 +91,7 @@ export function TripsList({
                 : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high')
             }
           >
-            {f}
+            {FILTER_LABELS[f]}
           </button>
         ))}
       </div>
@@ -76,54 +101,63 @@ export function TripsList({
       ) : filtered.length === 0 ? (
         <Card>
           <p className="text-sm text-on-surface-variant" data-testid="trips-empty">
-            No trips {filter !== 'all' ? `with status "${filter}"` : 'yet'}. Create your first one.
+            No trips {filter !== 'all' ? `in "${FILTER_LABELS[filter]}"` : 'yet'}. Create your
+            first one.
           </p>
         </Card>
       ) : (
         <ul className="flex flex-col gap-2">
           {filtered.map((trip) => {
-            const isActive = trip.id === activeTripId;
+            const codes = trip.country_codes ?? [];
+            const flags = codes.map((c) => flagEmoji(c)).filter((f) => f.length > 0);
             return (
               <li key={trip.id} data-testid={`trips-row-${trip.id}`}>
                 <Card>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-on-surface">
-                        {trip.name}
-                        {isActive && (
-                          <span
-                            className="ml-2 rounded bg-primary/15 px-1.5 py-0.5 text-xs text-primary font-medium"
-                            data-testid={`trips-active-badge-${trip.id}`}
-                          >
-                            active
-                          </span>
-                        )}
-                      </span>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-on-surface">
+                          {flags.length > 0 && (
+                            <span
+                              className="mr-1.5"
+                              aria-label={codes.join(', ')}
+                              data-testid={`trips-flags-${trip.id}`}
+                            >
+                              {flags.join(' ')}
+                            </span>
+                          )}
+                          {trip.name}
+                        </span>
+                        <StatusPill trip={trip} />
+                      </div>
                       <span className="text-xs text-on-surface-variant">
-                        {trip.start_date} → {trip.end_date} · {trip.status} · {trip.home_currency}
+                        {trip.start_date} → {trip.end_date} · {trip.home_currency}
                       </span>
                       <span className="text-xs text-on-surface-variant opacity-60">
                         slug: {trip.slug}
                       </span>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
                         onClick={() => onEdit(trip)}
+                        aria-label={`Edit ${trip.name}`}
+                        title="Edit"
                         data-testid={`trips-edit-${trip.id}`}
+                        className="rounded-md p-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={isActive ? 'ghost' : 'secondary'}
-                        disabled={isActive}
-                        onClick={() => void onSetActive(trip.id)}
-                        data-testid={`trips-set-active-${trip.id}`}
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDelete(trip)}
+                        aria-label={`Delete ${trip.name}`}
+                        title="Delete"
+                        data-testid={`trips-delete-${trip.id}`}
+                        className="rounded-md p-1.5 text-red-500 hover:bg-red-500/10 hover:text-red-600 transition-colors"
                       >
-                        {isActive ? 'Active' : 'Set active'}
-                      </Button>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 </Card>
@@ -132,6 +166,40 @@ export function TripsList({
           })}
         </ul>
       )}
+
+      <Sheet
+        open={pendingDelete !== null}
+        onClose={() => (deleting ? undefined : setPendingDelete(null))}
+        side="bottom"
+        title={pendingDelete ? `Delete "${pendingDelete.name}"?` : 'Delete trip?'}
+      >
+        <div className="flex flex-col gap-3" data-testid="trips-delete-confirm">
+          <p className="text-sm text-on-surface">
+            This removes the trip from this device. The corresponding markdown file in
+            your Obsidian vault is <strong>not</strong> deleted — remove it there to
+            fully clean up.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setPendingDelete(null)}
+              disabled={deleting}
+              data-testid="trips-delete-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void confirmDelete()}
+              disabled={deleting}
+              data-testid="trips-delete-confirm-button"
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </div>
+      </Sheet>
     </div>
   );
 }
