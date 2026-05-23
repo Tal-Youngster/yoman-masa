@@ -44,7 +44,7 @@ export function TripSwitcher(): React.JSX.Element {
       >
         {trips.length === 0 ? (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-on-surface-variant">
               You don&apos;t have any trips yet. Create your first one to get going.
             </p>
             <Button
@@ -67,14 +67,14 @@ export function TripSwitcher(): React.JSX.Element {
                     className={
                       'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ' +
                       (isActive
-                        ? 'bg-slate-800 text-sky-300'
-                        : 'text-slate-200 hover:bg-slate-800/60')
+                        ? 'bg-surface-container text-primary'
+                        : 'text-on-surface hover:bg-surface-container/60')
                     }
                     data-testid={`trip-switcher-option-${trip.id}`}
                   >
                     <span className="flex flex-col">
                       <span className="font-medium">{trip.name}</span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-on-surface-variant">
                         {trip.start_date} → {trip.end_date} · {trip.status}
                       </span>
                     </span>

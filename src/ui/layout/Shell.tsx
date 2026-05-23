@@ -5,7 +5,7 @@ import { BottomNav } from './BottomNav';
 
 export function Shell(): React.JSX.Element {
   return (
-    <div className="flex min-h-full flex-col bg-slate-950 text-slate-100">
+    <div className="flex min-h-full flex-col bg-background text-on-surface">
       <TopBar />
       <div className="flex flex-1">
         <SideNav />

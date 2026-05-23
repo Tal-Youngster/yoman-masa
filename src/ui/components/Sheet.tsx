@@ -45,7 +45,7 @@ export function Sheet({
       onCancel={onClose}
       aria-label={rest['aria-label']}
       className={cn(
-        'bg-transparent text-slate-100 backdrop:bg-black/60',
+        'bg-transparent text-on-surface backdrop:bg-black/30',
         'p-0 m-0 max-h-none max-w-none',
         side === 'bottom'
           ? 'mt-auto mb-0 w-full sm:max-w-md sm:rounded-t-2xl'
@@ -54,20 +54,20 @@ export function Sheet({
     >
       <div
         className={cn(
-          'flex h-full flex-col border border-slate-800 bg-slate-900 shadow-xl',
+          'flex h-full flex-col border border-outline-variant bg-surface shadow-xl',
           side === 'bottom'
             ? 'rounded-t-2xl pb-[env(safe-area-inset-bottom)]'
             : 'rounded-l-2xl',
         )}
       >
         {title && (
-          <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-            <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
+          <header className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+            <h2 className="text-sm font-semibold text-on-surface">{title}</h2>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="rounded-md px-2 py-1 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+              className="rounded-md px-2 py-1 text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
             >
               ×
             </button>

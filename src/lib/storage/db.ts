@@ -63,6 +63,30 @@ export function defineSchema(db: Dexie): void {
     .upgrade(async (tx) => {
       await tx.table('kv').put({ key: '__schema_v2__', value: 'true' });
     });
+
+  // v3 — add `file_id` and `resolved_path` columns to write_queue so the Dexie
+  // adapter can hand the sync worker rows S3 understands without extracting
+  // those fields from `payload`. Indexes added for both columns to support
+  // potential per-file dedupe lookups later.
+  //
+  // Pre-existing v2 rows are backfilled with `file_id = null` and
+  // `resolved_path = ''`. The adapter treats `resolved_path === ''` as a
+  // terminal dead-letter so a v2 row never reaches Drive with the empty path.
+  db.version(3)
+    .stores({
+      write_queue:
+        'id, entity_type, entity_id, created_at, file_id, resolved_path',
+    })
+    .upgrade(async (tx) => {
+      await tx
+        .table('write_queue')
+        .toCollection()
+        .modify((row: { file_id?: unknown; resolved_path?: unknown }) => {
+          if (row.file_id === undefined) row.file_id = null;
+          if (row.resolved_path === undefined) row.resolved_path = '';
+        });
+      await tx.table('kv').put({ key: '__schema_v3__', value: 'true' });
+    });
 }
 
 /** Shared singleton for the running app. Tests construct their own per-test instance. */

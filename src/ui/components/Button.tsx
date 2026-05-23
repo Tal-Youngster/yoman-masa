@@ -10,11 +10,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary: 'bg-sky-500 text-white hover:bg-sky-400 active:bg-sky-600',
+  primary: 'bg-primary text-on-primary hover:bg-primary-container active:bg-on-primary-container rounded-full',
   secondary:
-    'bg-slate-800 text-slate-100 border border-slate-700 hover:bg-slate-700 active:bg-slate-800',
-  ghost: 'bg-transparent text-slate-200 hover:bg-slate-800/60 active:bg-slate-800',
-  danger: 'bg-red-600 text-white hover:bg-red-500 active:bg-red-700',
+    'bg-surface-container text-on-surface border border-outline hover:bg-surface-container-high active:bg-surface-container',
+  ghost: 'bg-transparent text-on-surface-variant hover:bg-surface-container/60 active:bg-surface-container',
+  danger: 'bg-error text-on-error hover:bg-error/90 active:bg-error/80',
 };
 
 const sizeClasses: Record<Size, string> = {
@@ -33,7 +33,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       className={cn(
         'inline-flex items-center justify-center gap-2 font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
         'disabled:opacity-50 disabled:pointer-events-none',
         variantClasses[variant],
         sizeClasses[size],

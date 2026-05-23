@@ -20,6 +20,9 @@ Multi-agent dispatch plan for the Travel Journal app. Each slice is sized to be 
   - **S4 — App shell** (8 commits): `src/app/` + `src/ui/{components,layout}/` — TanStack Router (code-based, 8 placeholder routes), `Shell` / `TopBar` / `SideNav` / `BottomNav` / `TripSwitcher`, `Button` / `Input` / `Card` / `Sheet` primitives (native `<dialog>`), in-memory `KVStore` interface ready for Dexie swap. jsdom@25 pinned (Node 20.17 floor). 28 new tests.
   - **Merge & integration**: 4 `--no-ff` merges into `main`; trivial `package.json` resolution on S4; `src/app/dexie-kv-store.ts` adapter wires S4's `KVStore` to S2's `getKV` / `setKV` / `deleteKV`. All gates green: typecheck, lint, 177/177 tests, `vite build` (321 KB / 100 KB gzipped).
 
+- **Phase 2 — Spine** (S5, 8 commits on `slice/S5-trips` → PR open)
+  - **S5 — Trips** (8 commits): first end-to-end Drive-backed flow. v2→v3 write_queue migration adds `file_id` + `resolved_path` columns plus non-destructive `peekNextPending` / `dequeueById` helpers (keeping `drainNext` destructive for Phase-1 callers). Dexie-backed `WriteQueue` adapter (`src/sync/queue/dexie-queue.ts`) translates between S2's snake_case + epoch-ms rows and S3's camelCase + ISO `WriteQueueItem`; deadletters legacy v2 rows with empty `resolved_path`. `src/features/trips/` ships the trip parser/serializer with body preservation (8 fixture tests + 1000-run fast-check), slug derivation with NFKD + Unicode fallback, Dexie + Drive queries, the trip reconciler (creates emit frontmatter-only files), the JSON `activeConfigReconciler` for `<travel>/.travel/config.json`, and the full UI: `TripsList` (status-filter chips), `TripForm` (live slug preview, immutable post-create slug, editable currency + status + dates), `FirstRunFolderPrompt` (wraps S3's `pickFolder`), and `TripsRoute`. `src/app/trips-admin.ts` combines local persistence + write-queue enqueue + drainAll into one service exposed via the AppServices context. Integration tests against FakeDrive demonstrate the full read → write → re-read → reapply path including mid-flight + three-fold conflicts. 233/233 tests green.
+
 ## Phase map
 
 ```
@@ -814,13 +817,22 @@ export async function upsertTrip(t: Trip, db?: TravelDB): Promise<void>;
 export async function listTripsByStatus(s: TripStatus, db?: TravelDB): Promise<Trip[]>;
 // ... one upsert + one or more queries per entity (accommodations, places, expenses, tasks, shopping_items, articles)
 
+// Schema is at v3 after S5. Migration backfills pre-v3 rows with
+// file_id=null and resolved_path=''. The Dexie WriteQueue adapter
+// dead-letters rows with resolved_path === ''.
 export interface WriteQueueItem {
   id: string; entity_type: EntityType; entity_id: string; op: WriteOp;
   payload: unknown; base_revision: string | null;
+  file_id: string | null;       // ADDED v3 (S5)
+  resolved_path: string;        // ADDED v3 (S5)
   attempts: number; last_error: string | null; created_at: number; // epoch ms
 }
 export async function enqueueWrite(item: EnqueueInput, db?: TravelDB): Promise<void>;
+// Destructive: pops the head AND removes it. Kept for Phase-1 callers.
 export async function drainNext(db?: TravelDB): Promise<WriteQueueItem | null>;
+// Non-destructive helpers added in S5 for the Dexie WriteQueue adapter.
+export async function peekNextPending(db?: TravelDB): Promise<WriteQueueItem | null>;
+export async function dequeueById(id: string, db?: TravelDB): Promise<void>;
 export async function peekQueue(limit?: number, db?: TravelDB): Promise<WriteQueueItem[]>;
 export async function recordQueueFailure(id: string, error: string, db?: TravelDB): Promise<void>;
 export async function deleteQueueItem(id: string, db?: TravelDB): Promise<void>;
@@ -830,7 +842,7 @@ export async function setKV<K extends KVKey>(key: K, value: KVValue<K>, db?: Tra
 export async function deleteKV(key: KVKey, db?: TravelDB): Promise<void>;
 ```
 
-All queries accept an optional `db` for test isolation. KVKey is exhaustive over `active_trip_id` / `vault_root_file_id` / `travel_folder_file_id` / `drive_changes_page_token`.
+All queries accept an optional `db` for test isolation. KVKey is exhaustive over `active_trip_id` / `vault_root_file_id` / `travel_folder_file_id` / `drive_changes_page_token`. `EntityType` was extended in S5 with `'active_config'` for the `.travel/config.json` pointer file.
 
 ### From S3 (Drive + sync) — `src/sync/drive/`, `src/sync/queue/`
 
@@ -870,12 +882,19 @@ export interface WriteQueue {
 
 export const reconcilers: ReconcilerRegistry; // .register(r) / .get(type) / .has(type) / .unregister(type)
 export async function drainAll(opts: WorkerOptions): Promise<SyncReport>; // primary entry point; replaces the spec's `syncNow()`
+
+// Added in S5 — Dexie-backed adapter that satisfies the WriteQueue interface.
+export function createDexieWriteQueue(db?: TravelDB): DexieWriteQueue;
+export interface DexieWriteQueue extends WriteQueue {
+  markApplied(id: string): Promise<void>;
+}
 ```
 
 S3's deviations from the original spec:
 - Added `startChangeToken()` (Drive `changes.list` needs an initial page token).
 - `Reconciler.applyEdit` receives the `WriteQueueItem`, not the bare entity, so it can see `baseRevision` and the original `payload`.
 - Worker entry point is `drainAll(opts)` over a parameterized bundle (registry + queue + client + guard); no thinner `syncNow()` facade yet.
+- S5 added `markApplied(id)` to the `WriteQueue` interface (optional). The Dexie adapter uses it to delete the row after a successful write (`drainNext` is non-destructive there); `MemoryWriteQueue`'s implementation is a no-op for backward compatibility. The worker calls `queue.markApplied?.(item.id)` after each `applied` / `no-op` outcome.
 
 ### S4 (app shell) → S2 wiring — `src/app/dexie-kv-store.ts`
 
@@ -885,15 +904,14 @@ export function createDexieKVStore(db?: TravelDB): KVStore;
 
 Wraps S2's `getKV` / `setKV` / `deleteKV` to satisfy S4's `KVStore` interface. `set(key, null)` clears the row.
 
-### Open integration gap — S2 ↔ S3 write queue
+### Integration: S2 ↔ S3 write queue (resolved in S5)
 
-S2's `WriteQueueItem` shape doesn't carry S3's `fileId` or `resolvedPath`; field naming is snake_case vs camelCase; `created_at` is epoch ms vs ISO. The S3 worker currently runs against `MemoryWriteQueue` only.
-
-When S5 (Trips) lands the first end-to-end Drive flow, decide:
-1. **Extend S2's `write_queue` schema** (v3) with `file_id` + `resolved_path` columns, then write a Dexie-backed `WriteQueue` adapter, **or**
-2. **Embed `fileId` / `resolvedPath` inside `payload`** and have the adapter extract them at drain time — no schema change.
-
-Recommendation: option 1, because `resolvedPath` is needed by the WRITE_ALLOWED_PREFIX guard before the reconciler runs, and burying it in `payload` couples the guard to entity-specific knowledge.
+Resolved in S5 by extending S2's `write_queue` schema (option 1, as recommended):
+- **v3 migration** adds `file_id: string | null` and `resolved_path: string` columns and indexes both. The upgrade hook backfills pre-v3 rows with `file_id=null` and `resolved_path=''`. The migration test covers v1→v3, v2→v3 (with a synthetic legacy row), and a fresh-DB-at-v3 case.
+- **`enqueueWrite`** now requires both fields. The `EnqueueInput` type enforces this at the type system.
+- **`peekNextPending` + `dequeueById`** are non-destructive helpers added alongside the destructive `drainNext` (kept as-is so existing Phase-1 callers/tests stay green).
+- **Dexie adapter at `src/sync/queue/dexie-queue.ts`** translates snake_case rows ↔ camelCase `WriteQueueItem`, and epoch ms ↔ ISO `createdAt`. It implements `WriteQueue` for the S3 worker. `drainNext` claims (returns + hides) without deleting; `markApplied(id)` / terminal `markFailed(id, _, true)` delete; non-terminal `markFailed` bumps attempts via `recordQueueFailure`. Rows with empty `resolved_path` (the v2 migration sentinel) are silently dead-lettered to prevent ever forwarding them to Drive.
+- **`WriteQueue.markApplied` (optional)** added to the S3 surface for queues that need an explicit success confirmation. The worker calls it after `applied` / `no-op` outcomes; `MemoryWriteQueue` implements it as a no-op for backward compatibility (its `drainNext` already removes the item from the visible queue).
 
 Feature slices import from these surfaces and **do not** add competing utilities in their own folders.
 

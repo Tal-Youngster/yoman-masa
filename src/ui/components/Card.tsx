@@ -18,22 +18,22 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-xl border border-slate-800 bg-slate-900/60 p-4 shadow-sm',
+        'rounded-lg border border-outline-variant bg-surface-container p-4 shadow-sm',
         className,
       )}
       {...rest}
     >
       {(title || description) && (
         <header className="mb-3">
-          {title && <h3 className="text-sm font-semibold text-slate-100">{title}</h3>}
+          {title && <h3 className="text-sm font-semibold text-on-surface">{title}</h3>}
           {description && (
-            <p className="mt-0.5 text-xs text-slate-400">{description}</p>
+            <p className="mt-0.5 text-xs text-on-surface-variant">{description}</p>
           )}
         </header>
       )}
-      {children && <div className="text-sm text-slate-200">{children}</div>}
+      {children && <div className="text-sm text-on-surface">{children}</div>}
       {footer && (
-        <footer className="mt-3 border-t border-slate-800 pt-3 text-xs text-slate-400">
+        <footer className="mt-3 border-t border-outline-variant pt-3 text-xs text-on-surface-variant">
           {footer}
         </footer>
       )}

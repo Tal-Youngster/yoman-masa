@@ -1,4 +1,5 @@
 import { Card } from '@/ui/components';
+import { TripsRoute as TripsRouteImpl } from '@/features/trips/components';
 
 export function DashboardRoute(): React.JSX.Element {
   return (
@@ -10,13 +11,7 @@ export function DashboardRoute(): React.JSX.Element {
   );
 }
 
-export function TripsRoute(): React.JSX.Element {
-  return (
-    <Card title="Trips" description="Plan and switch between trips.">
-      <p className="text-slate-400">S5 — Trips will populate this view.</p>
-    </Card>
-  );
-}
+export const TripsRoute = TripsRouteImpl;
 
 export function AccommodationsRoute(): React.JSX.Element {
   return (
