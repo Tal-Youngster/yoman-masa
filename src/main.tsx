@@ -11,12 +11,14 @@ import { registerTripReconcilers } from './features/trips/register';
 import { registerAccommodationReconcilers } from './features/accommodations/register';
 import { registerPlaceReconcilers } from './features/places/register';
 import { registerExpenseReconcilers, createExpensesAdmin } from './features/expenses';
+import { registerTaskReconcilers, createTasksAdmin } from './features/tasks';
 import './index.css';
 
 registerTripReconcilers();
 registerAccommodationReconcilers();
 registerPlaceReconcilers();
 registerExpenseReconcilers();
+registerTaskReconcilers();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
@@ -99,11 +101,18 @@ const expensesAdmin = createExpensesAdmin({
   },
 });
 
+const tasksAdmin = createTasksAdmin({
+  db,
+  writeQueue,
+  travelFolderPath: 'Travel',
+});
+
 const services = {
   kv,
   trips,
   tripsAdmin,
   expensesAdmin,
+  tasksAdmin,
   drive,
   writeQueue,
   ...(geminiKey ? { ai: new GeminiClient(geminiKey) } : {}),
