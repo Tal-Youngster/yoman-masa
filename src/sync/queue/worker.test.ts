@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FakeDrive } from '../drive/fake.js';
-import { EditPointMissingError, type FileId } from '../drive/types.js';
+import { DriveApiError, EditPointMissingError, type FileId } from '../drive/types.js';
 import { MemoryWriteQueue } from './memory-queue.js';
 import { ReconcilerRegistry, type Reconciler } from './reconciler.js';
 import { drainAll, processItem } from './worker.js';
@@ -175,11 +175,9 @@ describe('worker', () => {
     expect(content).toBe('INIT:NEW');
   });
 
-  it('retries (does not dead-letter) the first time when create has no parent resolver, then exhausts the queue budget', async () => {
+  it('blocks (does not dead-letter) a create with no resolvable parent folder', async () => {
     const drive = new FakeDrive();
-    // Retry budget 1 → after the first retry the queue moves the item to "dead",
-    // so the worker sees a single processed item from the user's perspective.
-    const queue = new MemoryWriteQueue({ retryBudget: 1 });
+    const queue = new MemoryWriteQueue();
     const registry = new ReconcilerRegistry();
     registry.register(markerReconciler);
 
@@ -192,10 +190,40 @@ describe('worker', () => {
         resolvedPath: 'MyVault/Travel/x.md',
       }),
     );
+    // No resolveParent wired → the parent can't be resolved. This must surface
+    // as `blocked` (user needs to pick a folder), not a transient `retry` that
+    // loops forever.
     const report = await drainAll({ drive, queue, reconcilers: registry });
     expect(report.processed).toBe(1);
-    expect(report.retried).toBe(1);
+    expect(report.blocked).toBe(1);
+    expect(report.retried).toBe(0);
     expect(report.applied).toBe(0);
-    expect(queue.inspect()[0].state).toBe('dead');
+  });
+
+  it('blocks when parent resolution 404s (stale/inaccessible folder)', async () => {
+    const drive = new FakeDrive();
+    const queue = new MemoryWriteQueue();
+    const registry = new ReconcilerRegistry();
+    registry.register(markerReconciler);
+
+    await queue.enqueue(
+      makeItem({
+        id: '01HCREATE404',
+        op: 'create',
+        fileId: null,
+        baseRevision: null,
+        resolvedPath: 'MyVault/Travel/y.md',
+      }),
+    );
+    const report = await drainAll({
+      drive,
+      queue,
+      reconcilers: registry,
+      // Simulates resolveParent walking into a stale folder id that 404s.
+      resolveParent: () => Promise.reject(new DriveApiError('File not found: fld-000002', 404)),
+    });
+    expect(report.blocked).toBe(1);
+    expect(report.retried).toBe(0);
+    expect(report.deadLettered).toBe(0);
   });
 });

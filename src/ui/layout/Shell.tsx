@@ -1,10 +1,16 @@
 import { Outlet } from '@tanstack/react-router';
+import { useValidateTravelFolder } from '@/app/use-validate-travel-folder';
 import { TopBar } from './TopBar';
 import { SideNav } from './SideNav';
 import { BottomNav } from './BottomNav';
 import { InstallBanner } from '@/ui/install/InstallBanner';
 
 export function Shell(): React.JSX.Element {
+  // Validate the persisted Travel folder id once on startup, regardless of
+  // route. A stale id (e.g. a leftover FakeDrive id) otherwise makes the sync
+  // queue 404-loop forever; this drops it so the first-run picker can recover.
+  useValidateTravelFolder();
+
   return (
     <div className="flex min-h-full flex-col bg-background text-on-surface">
       <TopBar />

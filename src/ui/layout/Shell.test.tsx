@@ -1,10 +1,11 @@
 import 'fake-indexeddb/auto';
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderApp } from '@/test/render-app';
 import { makeTrip } from '@/test/fixtures';
+import { asFileId, DriveApiError, type DriveClient } from '@/sync/drive';
 import { TABS } from './tabs';
 
 beforeAll(() => {
@@ -133,5 +134,33 @@ describe('Shell', () => {
     const user = userEvent.setup();
     await user.click(trigger);
     expect(await screen.findByTestId('trip-switcher-create')).toBeInTheDocument();
+  });
+
+  it('clears a stale Travel folder id on startup even off the Trips route', async () => {
+    const getMetadata = vi
+      .fn<DriveClient['getMetadata']>()
+      .mockRejectedValue(new DriveApiError('File not found: fld-000002', 404));
+    const reject = (): never => {
+      throw new Error('not used');
+    };
+    const drive: DriveClient = {
+      getMetadata,
+      getContent: reject,
+      listFolder: reject,
+      createFolder: reject,
+      createFile: reject,
+      updateFile: reject,
+      pickFolder: reject,
+      getChanges: reject,
+      startChangeToken: reject,
+    };
+    // Land on the dashboard ('/'), NOT /trips, with a stale folder id persisted.
+    const { services } = renderApp({ initialPath: '/', travelFolderId: 'fld-000002', drive });
+
+    await screen.findByRole('heading', { name: 'Dashboard' });
+    await waitFor(async () => {
+      expect(await services.kv.get('travel_folder_file_id')).toBeNull();
+    });
+    expect(getMetadata).toHaveBeenCalledWith(asFileId('fld-000002'));
   });
 });

@@ -6,6 +6,7 @@ import type { WriteQueue } from '@/sync/queue';
 import type { SyncReport } from '@/sync/queue';
 import type { AiClient } from '@/lib/ai/client';
 import type { ExpensesAdminService } from '@/features/expenses';
+import type { TasksAdminService } from '@/features/tasks';
 
 /**
  * Side-effectful trip-creation surface. The trips slice's UI calls this
@@ -57,6 +58,8 @@ export interface AppServices {
   ai?: AiClient;
   /** Expenses mutation surface (S7). Optional so tests can stub. */
   expensesAdmin?: ExpensesAdminService;
+  /** Tasks mutation surface (S10). Optional so tests can stub. */
+  tasksAdmin?: TasksAdminService;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

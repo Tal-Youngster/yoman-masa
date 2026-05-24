@@ -9,7 +9,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppServicesProvider, type AppServices, type TripsAdminService } from '@/app/context';
 import { createMemoryKVStore } from '@/app/kv-store';
 import { createMockTripsStore } from '@/app/trips-store';
-import { asFileId } from '@/sync/drive';
+import { asFileId, DriveApiError } from '@/sync/drive';
+import type { FileMetadata } from '@/sync/drive';
 import type { Trip } from '@/domain';
 import { isoDate } from '@/domain/dates';
 import { currency } from '@/domain/money';
@@ -39,6 +40,7 @@ interface HarnessOptions {
   seedTrips?: Trip[];
   tripsAdmin?: Partial<TripsAdminService>;
   drivePickFolder?: () => Promise<{ id: string; name: string; path: string }>;
+  driveGetMetadata?: () => Promise<FileMetadata>;
 }
 
 function makeAdminStub(overrides: Partial<TripsAdminService> = {}): TripsAdminService & {
@@ -90,6 +92,7 @@ function makeAdminStub(overrides: Partial<TripsAdminService> = {}): TripsAdminSe
           processed: 0,
           applied: 0,
           retried: 0,
+          blocked: 0,
           deadLettered: 0,
           skipped: 0,
         });
@@ -116,10 +119,11 @@ async function renderRoute(opts: HarnessOptions = {}): Promise<{
     kv,
     trips: createMockTripsStore(opts.seedTrips ?? []),
     tripsAdmin: admin,
-    ...(opts.drivePickFolder
+    ...(opts.drivePickFolder || opts.driveGetMetadata
       ? {
           drive: {
-            getMetadata: () => Promise.reject(new Error('not used')),
+            getMetadata:
+              opts.driveGetMetadata ?? (() => Promise.reject(new Error('not used'))),
             getContent: () => Promise.reject(new Error('not used')),
             listFolder: () => Promise.reject(new Error('not used')),
             createFolder: () => Promise.reject(new Error('not used')),
@@ -185,6 +189,38 @@ describe('TripsRoute — first-run folder prompt', () => {
     });
     // After picking, the route should swap to the trips view.
     expect(await screen.findByTestId('trips-new')).toBeInTheDocument();
+  });
+
+  it('clears a stale folder id and shows the prompt when getMetadata 404s', async () => {
+    const getMetadata = vi
+      .fn<() => Promise<FileMetadata>>()
+      .mockRejectedValue(new DriveApiError('File not found: fld-000002', 404));
+    const { services } = await renderRoute({
+      travelFolderId: 'fld-000002',
+      driveGetMetadata: getMetadata,
+    });
+
+    // The stale id is validated, dropped, and the first-run picker is shown.
+    expect(await screen.findByTestId('first-run-pick')).toBeInTheDocument();
+    expect(getMetadata).toHaveBeenCalledWith(asFileId('fld-000002'));
+    await waitFor(async () => {
+      expect(await services.kv.get('travel_folder_file_id')).toBeNull();
+    });
+  });
+
+  it('keeps the folder id on a transient (non-404) validation error', async () => {
+    const getMetadata = vi
+      .fn<() => Promise<FileMetadata>>()
+      .mockRejectedValue(new DriveApiError('Service unavailable', 503));
+    const { services } = await renderRoute({
+      travelFolderId: 'fld_travel',
+      driveGetMetadata: getMetadata,
+    });
+
+    // A transient failure must not discard a good folder: the trips view loads
+    // and the persisted id is untouched.
+    expect(await screen.findByTestId('trips-new')).toBeInTheDocument();
+    expect(await services.kv.get('travel_folder_file_id')).toBe('fld_travel');
   });
 });
 

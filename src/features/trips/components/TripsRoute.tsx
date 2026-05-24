@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus } from 'lucide-react';
 
 import { Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
+import { useValidateTravelFolder } from '@/app/use-validate-travel-folder';
 import type { Trip } from '@/domain/trip';
 
 import { FirstRunFolderPrompt } from './FirstRunFolderPrompt';
@@ -15,24 +16,14 @@ import { TripsList } from './TripsList';
  *   - trips list + create/edit affordances
  */
 export function TripsRoute(): React.JSX.Element {
-  const { kv, tripsAdmin } = useAppServices();
+  const { tripsAdmin } = useAppServices();
 
-  const [travelFolderId, setTravelFolderId] = useState<string | null | undefined>(undefined);
+  // Validates the persisted folder id (see useValidateTravelFolder); the setter
+  // lets a fresh pick reveal the list without re-reading.
+  const [travelFolderId, setTravelFolderId] = useValidateTravelFolder();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Trip | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const folder = await kv.get('travel_folder_file_id');
-      if (cancelled) return;
-      setTravelFolderId(folder);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [kv]);
 
   function openCreate(): void {
     setEditing(null);
