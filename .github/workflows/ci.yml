@@ -40,3 +40,40 @@ jobs:
         env:
           VITE_GOOGLE_CLIENT_ID: ci-placeholder
           VITE_GOOGLE_API_KEY: ci-placeholder
+
+  deploy:
+    name: deploy to Cloudflare Workers
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # VITE_* are baked into the bundle here, so the real values must be present
+      # at build time. Store them as GitHub repo secrets (Settings → Secrets and
+      # variables → Actions). Missing optional keys just disable that feature.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_API_KEY: ${{ secrets.VITE_GOOGLE_API_KEY }}
+          VITE_PROTOMAPS_API_KEY: ${{ secrets.VITE_PROTOMAPS_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # dist/ is already built above; just upload it.
+          command: deploy
