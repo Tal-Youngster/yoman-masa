@@ -19,6 +19,7 @@
 
 import {
   ConflictExhaustedError,
+  DriveApiError,
   EditPointMissingError,
   WriteOutOfScopeError,
   type DriveClient,
@@ -84,8 +85,8 @@ export async function processItem(
       const parent = await opts.resolveParent?.(item);
       if (!parent) {
         return {
-          kind: 'retry',
-          error: 'Cannot create file: parent folder id not resolved.',
+          kind: 'blocked',
+          error: 'Travel folder not configured — pick your Travel folder to resume syncing.',
         };
       }
       const created = await opts.drive.createFile({
@@ -116,6 +117,15 @@ export async function processItem(
     if (err instanceof ZodError) {
       return { kind: 'dead-letter', error: err.message };
     }
+    if (err instanceof DriveApiError && err.status === 404) {
+      // A 404 while resolving the parent/file means the configured Travel folder
+      // (or the target file) is gone or inaccessible. Retrying can't recover it;
+      // surface it so the user re-picks the folder.
+      return {
+        kind: 'blocked',
+        error: 'A Drive item was not found (404) — re-pick your Travel folder to resume syncing.',
+      };
+    }
     return { kind: 'retry', error: errorMessage(err) };
   }
 }
@@ -129,6 +139,7 @@ export async function drainAll(opts: WorkerOptions, signal?: AbortSignal): Promi
     processed: 0,
     applied: 0,
     retried: 0,
+    blocked: 0,
     deadLettered: 0,
     skipped: 0,
   };
@@ -155,6 +166,13 @@ export async function drainAll(opts: WorkerOptions, signal?: AbortSignal): Promi
         report.retried += 1;
         await opts.queue.markFailed(item.id, outcome.error, false);
         return report; // Queue stalls on transient failure
+      case 'blocked':
+        report.blocked += 1;
+        // Non-terminal: keep the item so it resumes once the user re-picks the
+        // folder. Stall the drain — every item shares this parent, so the rest
+        // would block too.
+        await opts.queue.markFailed(item.id, outcome.error, false);
+        return report;
       case 'dead-letter':
         report.deadLettered += 1;
         await opts.queue.markFailed(item.id, outcome.error, true);

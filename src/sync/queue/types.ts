@@ -87,12 +87,22 @@ export type ProcessOutcome =
   | { kind: 'applied'; newRevision: string; fileId?: string }
   | { kind: 'no-op' }
   | { kind: 'retry'; error: string }
+  /**
+   * The item can't proceed without user action — e.g. the Travel folder isn't
+   * configured, or its id is stale/inaccessible (404). Unlike `retry`, hammering
+   * Drive won't fix it, so the worker stalls and the UI surfaces a "re-pick your
+   * folder" prompt instead of looping. The item stays queued (non-terminal) so a
+   * re-pick lets it resume.
+   */
+  | { kind: 'blocked'; error: string }
   | { kind: 'dead-letter'; error: string };
 
 export interface SyncReport {
   processed: number;
   applied: number;
   retried: number;
+  /** Items that stalled awaiting user action (see `ProcessOutcome` `blocked`). */
+  blocked: number;
   deadLettered: number;
   skipped: number;
 }

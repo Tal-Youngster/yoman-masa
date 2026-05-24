@@ -61,6 +61,16 @@ export function SyncStatus(): React.JSX.Element | null {
             setErrorMsg('Sync failed. Please check your connection or Drive access.');
           } else if (report.deadLettered > 0) {
             setErrorMsg(`Failed to sync ${report.deadLettered} item(s). They are permanently stuck.`);
+          } else if (report.blocked > 0) {
+            // A blocked item won't succeed on retry (e.g. the Travel folder id
+            // is missing/stale). Latch the error so we stop the 1.5s retry loop
+            // and prompt the user to re-pick their folder. Cleared on reconnect
+            // or via "Retry Now".
+            setErrorMsg('Sync needs attention — re-pick your Travel folder to resume syncing.');
+          } else if (report.retried > 0) {
+            // A transient failure stalled the queue. Pause auto-retry (rather
+            // than hammering every 1.5s); it resumes on reconnect or "Retry Now".
+            setErrorMsg('Sync paused after a temporary error. It will retry when you reconnect.');
           } else {
             setErrorMsg(null);
           }
