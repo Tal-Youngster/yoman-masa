@@ -64,7 +64,7 @@ export class MemoryWriteQueue implements WriteQueue {
     return Promise.resolve();
   }
 
-  markApplied(id: string): Promise<void> {
+  markApplied(id: string, newRevision?: string, fileId?: string): Promise<void> {
     const slot = this.slots.get(id);
     if (!slot) return Promise.resolve();
     this.slots.delete(id);

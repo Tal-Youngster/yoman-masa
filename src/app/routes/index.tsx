@@ -2,7 +2,7 @@ import { Card } from '@/ui/components';
 import { TripsRoute as TripsRouteImpl } from '@/features/trips/components';
 export { LoginRoute } from './login';
 
-import { MissingNightsDashboardCard } from '@/features/missing-nights/components';
+import { MissingNightsDashboardCard, DaysUntilMissingNightCard } from '@/features/missing-nights/components';
 
 export function DashboardRoute(): React.JSX.Element {
   return (
@@ -11,6 +11,7 @@ export function DashboardRoute(): React.JSX.Element {
         <p className="text-slate-400">Feature content lands in later slices.</p>
       </Card>
       <MissingNightsDashboardCard />
+      <DaysUntilMissingNightCard />
     </div>
   );
 }

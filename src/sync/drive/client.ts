@@ -109,6 +109,24 @@ export class RealDriveClient implements DriveClient {
     );
   }
 
+  async createFolder(parentId: FileId, name: string): Promise<FileMetadata> {
+    const metadata = {
+      name,
+      parents: [parentId],
+      mimeType: 'application/vnd.google-apps.folder',
+    };
+    const resp = await this.authed(`${API}/files?fields=${META_FIELDS}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(metadata),
+    });
+    if (!resp.ok) {
+      throw new DriveApiError(`createFolder ${name} failed`, resp.status, await safeText(resp));
+    }
+    const raw = (await resp.json()) as RawDriveFile;
+    return toFileMetadata(raw, '');
+  }
+
   async createFile(input: CreateFileInput): Promise<FileMetadata> {
     assertUnderPrefix(input.resolvedPath, this.allowedPrefix);
     const metadata = {

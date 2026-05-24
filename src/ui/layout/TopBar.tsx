@@ -2,6 +2,7 @@ import { Plane } from 'lucide-react';
 import { useRouterState } from '@tanstack/react-router';
 import { TripSwitcher } from './TripSwitcher';
 import { AccountMenu } from './AccountMenu';
+import { SyncStatus } from './SyncStatus';
 
 export function TopBar(): React.JSX.Element {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -20,6 +21,7 @@ export function TopBar(): React.JSX.Element {
       </div>
       <div className="flex items-center gap-3">
         {!hideSwitcher && <TripSwitcher />}
+        <SyncStatus />
         <AccountMenu />
       </div>
     </header>
