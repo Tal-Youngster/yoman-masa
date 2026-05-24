@@ -71,14 +71,27 @@ Every app-written file preserves user content below frontmatter / outside struct
 2. APIs & Services → **Enable** the _Google Drive API_ and _Google Picker API_.
 3. OAuth consent screen → External → **Testing**. Add your Google account as a test user. Add scopes: `https://www.googleapis.com/auth/drive` and `openid email profile`.
 4. Credentials → Create OAuth Client ID → **Web application**.
-   - Authorized JS origins: `http://localhost:5173` and your deployed URL (e.g. `https://travel.<you>.dev`).
-5. Configure your environment variables in `wrangler.jsonc` under the `vars` and `env.dev.vars` sections:
-   ```jsonc
-   "vars": {
-     "VITE_GOOGLE_CLIENT_ID": "your-client-id",
-     "VITE_GOOGLE_API_KEY": "your-api-key"
-   }
-   ```
+   - Authorized JS origins: `http://localhost:5173` and your deployed URL (e.g. `https://yoman-masa.<you>.workers.dev`). Add Cloudflare preview URLs too if you use them.
+
+### Environment variables
+
+All config is `VITE_*` and **baked into the JS bundle at `vite build` time** — there is no runtime/backend config. Copy `.env.example` to `.env.local` and fill it in for local dev:
+
+```bash
+cp .env.example .env.local
+```
+
+| Var | Required | Notes |
+| --- | --- | --- |
+| `VITE_GOOGLE_CLIENT_ID` | yes | OAuth client ID. Public by design (implicit flow). |
+| `VITE_GOOGLE_API_KEY` | yes | Drive Picker API key. Public by design. |
+| `VITE_PROTOMAPS_API_KEY` | for maps | Basemap tiles on the Places tab. |
+| `VITE_GEMINI_API_KEY` | for AI | **Billable** and ends up in the client bundle — restrict it in Google Cloud or omit to disable AI. |
+
+If `VITE_GOOGLE_CLIENT_ID` / `VITE_GOOGLE_API_KEY` are absent, the app falls back to an in-memory fake Drive (no real sync).
+
+> `.env.local` is git-ignored. Do **not** put these in `wrangler.jsonc` `vars` — those are Worker *runtime* bindings and never reach `import.meta.env` in a static SPA.
+
 ### Local dev
 
 ```bash
@@ -93,15 +106,58 @@ npm run lint
 ### Build
 
 ```bash
-npm run build        # outputs to dist/
-npm run preview      # serves the prod build locally
+npm run build        # tsc -b && vite build → dist/
+npm run preview      # build, then serve dist/ via `wrangler dev`
 ```
+
+`npm run build` reads `.env.local` (or the shell env). Without the Google vars set it still builds, but the bundle ships the fake Drive.
+
+## Deploying
+
+Host: **Cloudflare Workers** (Static Assets), configured in `wrangler.jsonc` (`assets.directory: dist`, no Worker script — it just serves the build). The `*.workers.dev` URL is fine for personal use.
+
+### Continuous deploy (recommended)
+
+`.github/workflows/ci.yml` runs typecheck + lint + test + build on every PR, and on push to `main` it additionally **builds and deploys** to Cloudflare via `cloudflare/wrangler-action`. Because `VITE_*` are baked in at build time, the real values live in **GitHub repo secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | What |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Token with the *Edit Cloudflare Workers* permission. |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID. |
+| `VITE_GOOGLE_CLIENT_ID` | OAuth client ID. |
+| `VITE_GOOGLE_API_KEY` | Drive Picker key. |
+| `VITE_PROTOMAPS_API_KEY` | Map tiles (optional). |
+| `VITE_GEMINI_API_KEY` | AI features (optional). |
+
+Create the API token at <https://dash.cloudflare.com/profile/api-tokens> using the **Edit Cloudflare Workers** template. Push to `main` → the app deploys.
+
+### Manual deploy
+
+With `.env.local` populated and `wrangler` authenticated (`npx wrangler login`):
+
+```bash
+npm run deploy       # npm run build && wrangler deploy
+```
+
+## Regenerating PWA icons
+
+Icons live in `public/icons/` (+ `public/apple-touch-icon-180x180.png`, `public/favicon.ico`) and are committed, generated once from `public/logo.svg`. They are **not** built on every `vite build` — the generator depends on the native `sharp` module, which fails to load from a non-ASCII path on Windows (this repo's folder name is Hebrew). To regenerate after editing `logo.svg`, run the generator from a temporary ASCII-only path:
+
+```bash
+mkdir /c/tmp-icons && cp public/logo.svg /c/tmp-icons/ && cd /c/tmp-icons
+npm init -y && npm i -D @vite-pwa/assets-generator
+npx pwa-assets-generator --preset minimal-2023 logo.svg
+# copy pwa-192x192.png, pwa-512x512.png, maskable-icon-512x512.png → public/icons/
+# copy apple-touch-icon-180x180.png, favicon.ico → public/
+```
+
+(On Linux/macOS the temp-dir dance is unnecessary — `sharp` loads fine.)
 
 ## Install on the Pixel
 
-1. Deploy (Cloudflare Pages: `npm run build` → upload `dist/`, or wire it to GitHub).
-2. Open the deployed URL in Chrome on the Pixel.
-3. Chrome menu → "Install app" → confirm. The app appears on the home screen as a standalone PWA.
+1. Deploy (see above) and open the deployed `https://…workers.dev` URL in Chrome on the Pixel.
+2. Either tap **Install** on the in-app banner, or use the Chrome menu → **Install app**.
+3. The app appears on the home screen and launches standalone. After the first load it works offline; the service worker (`registerType: 'autoUpdate'`) silently picks up new deploys on next launch.
 
 ## Development conventions
 
