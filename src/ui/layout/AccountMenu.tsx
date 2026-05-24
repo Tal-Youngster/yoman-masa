@@ -3,12 +3,10 @@ import { useAuthStore } from '@/app/auth-store';
 import { useAppServices } from '@/app/use-app-services';
 import { User, LogOut, HardDrive, FolderOpen } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
-import { db } from '@/lib/storage';
-import { useLiveQuery } from 'dexie-react-hooks';
 
 export function AccountMenu(): React.JSX.Element | null {
   const { user, logout } = useAuthStore();
-  const { drive, kv, tripsAdmin } = useAppServices();
+  const { drive, kv } = useAppServices();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -19,7 +17,7 @@ export function AccountMenu(): React.JSX.Element | null {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (event.target instanceof Node && menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     }
@@ -30,7 +28,7 @@ export function AccountMenu(): React.JSX.Element | null {
   useEffect(() => {
     if (isOpen) {
       kv.get('travel_folder_file_id')
-        .then((id) => setCurrentFolderId(id as string | null))
+        .then(setCurrentFolderId)
         .catch(console.error);
     }
   }, [isOpen, kv]);

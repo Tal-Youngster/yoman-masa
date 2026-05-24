@@ -151,7 +151,7 @@ export function createDexieWriteQueue(db?: TravelDB): DexieWriteQueue {
           entity_type: row.entity_type,
           entity_id: row.entity_id,
           head_revision_id: newRevision,
-          modified_time: Date.now(), // Approximate
+          modified_time: new Date().toISOString(), // Approximate
           path: row.resolved_path
         }, handle);
 

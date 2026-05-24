@@ -201,7 +201,7 @@ export class FakeDrive implements DriveClient {
     return Promise.resolve(out);
   }
 
-  async createFolder(parentId: FileId, name: string): Promise<FileMetadata> {
+  createFolder(parentId: FileId, name: string): Promise<FileMetadata> {
     const id = nextId('fld');
     const revision = asRevisionId(`${id}:0`);
     const time = this.tick();
@@ -222,7 +222,7 @@ export class FakeDrive implements DriveClient {
       history: [{ revision, content: '', modifiedTime: time }],
     });
     this.changes.push({ fileId: id, file: meta, removed: false });
-    return meta;
+    return Promise.resolve(meta);
   }
 
   createFile(input: CreateFileInput): Promise<FileMetadata> {

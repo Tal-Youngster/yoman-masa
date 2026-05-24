@@ -5,7 +5,7 @@ import { useAppServices } from '@/app/use-app-services';
 import { Cloud, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export function SyncStatus(): React.JSX.Element | null {
-  const { tripsAdmin, user } = useAppServices() as any; // Hack: user is from useAuthStore, but AppServices doesn't have it. We only show it if user is logged in. Actually wait, let's just render.
+  const { tripsAdmin } = useAppServices();
   
   // We only want to run sync if the user is logged in / auth is initialized.
   // We can just rely on the AccountMenu/TopBar mounting condition.
@@ -48,21 +48,23 @@ export function SyncStatus(): React.JSX.Element | null {
   useEffect(() => {
     let mounted = true;
     if (pendingCount > 0 && isOnline && !syncing && !errorMsg && tripsAdmin) {
-      const timeout = setTimeout(async () => {
-        if (!mounted) return;
-        setSyncing(true);
-        const report = await tripsAdmin.syncNow();
-        
-        // We MUST update state even if the effect cleaned up (e.g. pendingCount changed)
-        // otherwise the syncing animation gets stuck forever!
-        setSyncing(false);
-        if (!report) {
-          setErrorMsg('Sync failed. Please check your connection or Drive access.');
-        } else if (report.deadLettered > 0) {
-          setErrorMsg(`Failed to sync ${report.deadLettered} item(s). They are permanently stuck.`);
-        } else {
-          setErrorMsg(null);
-        }
+      const timeout = setTimeout(() => {
+        void (async () => {
+          if (!mounted) return;
+          setSyncing(true);
+          const report = await tripsAdmin.syncNow();
+          
+          // We MUST update state even if the effect cleaned up (e.g. pendingCount changed)
+          // otherwise the syncing animation gets stuck forever!
+          setSyncing(false);
+          if (!report) {
+            setErrorMsg('Sync failed. Please check your connection or Drive access.');
+          } else if (report.deadLettered > 0) {
+            setErrorMsg(`Failed to sync ${report.deadLettered} item(s). They are permanently stuck.`);
+          } else {
+            setErrorMsg(null);
+          }
+        })();
       }, 1500); // 1.5s debounce for batch writes
       return () => {
         mounted = false;

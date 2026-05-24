@@ -122,6 +122,7 @@ async function renderRoute(opts: HarnessOptions = {}): Promise<{
             getMetadata: () => Promise.reject(new Error('not used')),
             getContent: () => Promise.reject(new Error('not used')),
             listFolder: () => Promise.reject(new Error('not used')),
+            createFolder: () => Promise.reject(new Error('not used')),
             createFile: () => Promise.reject(new Error('not used')),
             updateFile: () => Promise.reject(new Error('not used')),
             pickFolder: async () => {

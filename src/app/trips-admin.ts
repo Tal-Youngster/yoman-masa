@@ -38,6 +38,7 @@ import type { TravelDB } from '@/lib/storage';
 import { tripFilePath, activeConfigFilePath } from '@/features/trips/paths';
 import type { TripPayload } from '@/features/trips/reconciler';
 import { ulid } from 'ulid';
+import type { EntityType } from '@/lib/storage/types';
 
 import type { TripsAdminService } from './context';
 
@@ -211,7 +212,7 @@ export function createTripsAdmin(deps: TripsAdminDeps): TripsAdminService {
           resolveParent,
           resolveFileId: async (item) => {
             const handle = deps.db ?? defaultDb;
-            const meta = await getFileMetaByEntity(item.entityType as any, item.entityId, handle);
+            const meta = await getFileMetaByEntity(item.entityType as EntityType, item.entityId, handle);
             if (meta?.file_id) return asFileId(meta.file_id);
             
             // Fallback: search Drive if local meta is completely missing
