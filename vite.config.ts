@@ -10,7 +10,10 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
+      // Icons are pre-generated from public/logo.svg with @vite-pwa/assets-generator
+      // and committed under public/icons/ — see README "Regenerating icons". They are
+      // committed (not built) so the build never depends on the native `sharp` module.
       manifest: {
         name: 'Travel Journal',
         short_name: 'Travel',
@@ -22,10 +25,10 @@ export default defineConfig({
         scope: '/',
         start_url: '/',
         icons: [
-          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
           {
-            src: 'icons/icon-512-maskable.png',
+            src: 'icons/maskable-icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

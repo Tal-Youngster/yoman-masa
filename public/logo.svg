@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Travel Journal">
+  <rect width="512" height="512" rx="112" fill="#9f4122" />
+  <!-- map pin -->
+  <path
+    d="M256 86 C 178 86 116 148 116 226 C 116 322 256 432 256 432 C 256 432 396 322 396 226 C 396 148 334 86 256 86 Z"
+    fill="#fff9ee" />
+  <!-- suitcase inside the pin head -->
+  <g transform="translate(0 6)">
+    <path d="M238 168 v-12 a10 10 0 0 1 10 -10 h16 a10 10 0 0 1 10 10 v12"
+      fill="none" stroke="#9f4122" stroke-width="12" stroke-linecap="round" />
+    <rect x="200" y="168" width="112" height="86" rx="16" fill="#9f4122" />
+    <line x1="256" y1="168" x2="256" y2="254" stroke="#fff9ee" stroke-width="8" stroke-linecap="round" />
+  </g>
+</svg>
