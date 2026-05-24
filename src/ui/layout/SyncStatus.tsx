@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/storage';
+import { db, getKV } from '@/lib/storage';
 import { useAppServices } from '@/app/use-app-services';
 import { Cloud, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
 
@@ -16,7 +16,10 @@ export function SyncStatus(): React.JSX.Element | null {
   
   const pendingCount = useLiveQuery(() => db.write_queue.count(), []) ?? 0;
   const firstPending = useLiveQuery(() => db.write_queue.orderBy('created_at').first(), []);
-  
+  // `undefined` while loading; `null` when no folder is configured.
+  const travelFolderId = useLiveQuery(() => getKV('travel_folder_file_id'), []);
+  const lastFolderId = useRef<string | null | undefined>(undefined);
+
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +47,19 @@ export function SyncStatus(): React.JSX.Element | null {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // When the Travel folder is (re-)picked, clear any latched error so a queue
+  // that stalled on a missing/stale folder resumes on its own — no need to wait
+  // for a reconnect or a manual "Retry Now". We only react to a *change* to a
+  // valid id (not the initial load), so a folder that was valid all along
+  // doesn't wipe an unrelated transient error.
+  useEffect(() => {
+    if (travelFolderId === undefined) return; // still loading
+    const changed =
+      lastFolderId.current !== undefined && lastFolderId.current !== travelFolderId;
+    lastFolderId.current = travelFolderId;
+    if (changed && travelFolderId) setErrorMsg(null);
+  }, [travelFolderId]);
 
   useEffect(() => {
     let mounted = true;
