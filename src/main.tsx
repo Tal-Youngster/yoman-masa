@@ -22,7 +22,7 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-const developerKey = import.meta.env.VITE_GOOGLE_PICKER_DEVELOPER_KEY as string | undefined;
+const developerKey = import.meta.env.VITE_GOOGLE_API_KEY as string | undefined;
 const geminiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
 
 import type { DriveClient } from './sync/drive';
@@ -50,15 +50,42 @@ const kv = createDexieKVStore(db);
 const trips = createDexieTripsStore(db);
 const writeQueue = createDexieWriteQueue(db);
 
+const folderCache = new Map<string, string>();
+
 const tripsAdmin = createTripsAdmin({
   db,
   writeQueue,
   drive,
   travelFolderPath: 'Travel', // Defaults to 'Travel' for path prefixing
   travelFolderId: asFileId(''), // Placeholder, overriden by resolveParent
-  resolveParent: async () => {
-    const folder = await kv.get('travel_folder_file_id');
-    return folder ? asFileId(folder) : null;
+  resolveParent: async (item) => {
+    const travelFolder = await kv.get('travel_folder_file_id');
+    if (!travelFolder) return null;
+    
+    const parts = item.resolvedPath.split('/').filter(Boolean);
+    if (parts.length <= 1) return asFileId(travelFolder);
+    
+    const folderNames = parts.slice(0, -1);
+    let currentParent = travelFolder;
+    let currentPath = '';
+    
+    for (const name of folderNames) {
+      currentPath = currentPath ? `${currentPath}/${name}` : name;
+      if (folderCache.has(currentPath)) {
+        currentParent = folderCache.get(currentPath)!;
+        continue;
+      }
+      
+      const files = await drive.listFolder(asFileId(currentParent));
+      let found = files.find(f => f.name === name && f.isFolder);
+      if (!found) {
+        found = await drive.createFolder(asFileId(currentParent), name);
+      }
+      folderCache.set(currentPath, found.id);
+      currentParent = found.id;
+    }
+    
+    return asFileId(currentParent);
   },
 });
 

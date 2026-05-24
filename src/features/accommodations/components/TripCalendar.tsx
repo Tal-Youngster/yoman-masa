@@ -63,7 +63,7 @@ export function TripCalendar({ trip, accommodations, onAccommodationClick, onMis
             return (
               <div
                 key={date}
-                className="flex-none flex flex-col items-center w-16 pt-3 h-[5.5rem] snap-start border-r border-outline-variant last:border-r-0"
+                className="flex-none flex flex-col items-center w-16 pt-3 h-[6.5rem] snap-start border-r border-outline-variant last:border-r-0"
               >
                 <div className="flex flex-col items-center px-1 text-on-surface">
                   <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">
@@ -80,7 +80,7 @@ export function TripCalendar({ trip, accommodations, onAccommodationClick, onMis
             );
           })}
 
-          <div className="absolute left-0 bottom-1 right-0 h-2 pointer-events-none">
+          <div className="absolute left-0 bottom-4 right-0 h-2 pointer-events-none">
             {segments.map((seg) => {
               let startIdx = dateToIndex.get(seg.start);
               let endIdx = dateToIndex.get(seg.end);

@@ -201,6 +201,30 @@ export class FakeDrive implements DriveClient {
     return Promise.resolve(out);
   }
 
+  createFolder(parentId: FileId, name: string): Promise<FileMetadata> {
+    const id = nextId('fld');
+    const revision = asRevisionId(`${id}:0`);
+    const time = this.tick();
+    const meta: FileMetadata = {
+      id,
+      name,
+      parents: [parentId],
+      mimeType: FOLDER_MIME,
+      headRevisionId: revision,
+      modifiedTime: time,
+      path: '',
+      isFolder: true,
+    };
+    this.files.set(id, {
+      meta,
+      content: '',
+      revisionCounter: 0,
+      history: [{ revision, content: '', modifiedTime: time }],
+    });
+    this.changes.push({ fileId: id, file: meta, removed: false });
+    return Promise.resolve(meta);
+  }
+
   createFile(input: CreateFileInput): Promise<FileMetadata> {
     try {
       guardWrite({ resolvedPath: input.resolvedPath }, this.allowedPrefix);

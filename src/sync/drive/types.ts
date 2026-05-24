@@ -102,6 +102,7 @@ export interface DriveClient {
   getMetadata(fileId: FileId): Promise<FileMetadata>;
   getContent(fileId: FileId): Promise<{ content: string; revision: RevisionId }>;
   listFolder(folderId: FileId): Promise<readonly FileMetadata[]>;
+  createFolder(parentId: FileId, name: string): Promise<FileMetadata>;
   createFile(input: CreateFileInput): Promise<FileMetadata>;
   updateFile(input: UpdateFileInput): Promise<FileMetadata>;
   pickFolder(): Promise<FolderPick>;

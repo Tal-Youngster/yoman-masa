@@ -23,8 +23,8 @@ import {
   type SyncReport,
   type WriteQueue,
 } from '@/sync/queue';
-import type { DriveClient } from '@/sync/drive';
-import type { FileId } from '@/sync/drive';
+import type { DriveClient, FileId } from '@/sync/drive';
+import { asFileId } from '@/sync/drive';
 import {
   db as defaultDb,
   deleteFileMeta,
@@ -38,6 +38,7 @@ import type { TravelDB } from '@/lib/storage';
 import { tripFilePath, activeConfigFilePath } from '@/features/trips/paths';
 import type { TripPayload } from '@/features/trips/reconciler';
 import { ulid } from 'ulid';
+import type { EntityType } from '@/lib/storage/types';
 
 import type { TripsAdminService } from './context';
 
@@ -209,6 +210,22 @@ export function createTripsAdmin(deps: TripsAdminDeps): TripsAdminService {
           queue: deps.writeQueue,
           reconcilers,
           resolveParent,
+          resolveFileId: async (item) => {
+            const handle = deps.db ?? defaultDb;
+            const meta = await getFileMetaByEntity(item.entityType as EntityType, item.entityId, handle);
+            if (meta?.file_id) return asFileId(meta.file_id);
+            
+            // Fallback: search Drive if local meta is completely missing
+            const parent = await resolveParent(item);
+            if (!parent) return null;
+            
+            const seg = item.resolvedPath.split('/').filter(Boolean);
+            const expectedName = seg[seg.length - 1] ?? `${item.entityId}.md`;
+            
+            const files = await deps.drive.listFolder(parent);
+            const found = files.find(f => f.name === expectedName);
+            return found ? asFileId(found.id) : null;
+          }
         });
       } catch {
         // Surface to the caller as a null report; the UI logs and shows a

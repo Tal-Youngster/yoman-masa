@@ -75,7 +75,7 @@ export interface WriteQueue {
    * in-memory queue's optional method is a no-op. Optional so existing
    * queues without explicit success-confirmation stay valid.
    */
-  markApplied?(id: string): Promise<void>;
+  markApplied?(id: string, newRevision?: string, fileId?: string): Promise<void>;
   /** Optional: peek the head of the queue without removing it. Used by tests. */
   peek?(): Promise<WriteQueueItem | null>;
   /** Optional: size of the queue. */
@@ -84,7 +84,7 @@ export interface WriteQueue {
 
 /** Outcome of processing one queue item. */
 export type ProcessOutcome =
-  | { kind: 'applied'; newRevision: string }
+  | { kind: 'applied'; newRevision: string; fileId?: string }
   | { kind: 'no-op' }
   | { kind: 'retry'; error: string }
   | { kind: 'dead-letter'; error: string };

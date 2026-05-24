@@ -23,6 +23,7 @@ import {
   enqueueWrite,
   peekNextPending,
   recordQueueFailure,
+  upsertFileMeta,
   type EnqueueInput,
   type TravelDB,
   type WriteQueueItem as DexieWriteQueueItem,
@@ -72,7 +73,7 @@ export function itemToEnqueueInput(item: WriteQueueItem): EnqueueInput {
 
 export interface DexieWriteQueue extends WriteQueue {
   /** Confirm a row applied successfully and remove it from the queue. */
-  markApplied(id: string): Promise<void>;
+  markApplied(id: string, newRevision?: string, fileId?: string): Promise<void>;
 }
 
 /**
@@ -139,8 +140,28 @@ export function createDexieWriteQueue(db?: TravelDB): DexieWriteQueue {
       await recordQueueFailure(id, error, handle);
     },
 
-    async markApplied(id: string): Promise<void> {
+    async markApplied(id: string, newRevision?: string, fileId?: string): Promise<void> {
       claimed.delete(id);
+      
+      const row = await handle.write_queue.get(id);
+      if (row && fileId && newRevision) {
+        // 1. Write the new file_meta to local storage
+        await upsertFileMeta({
+          file_id: fileId,
+          entity_type: row.entity_type,
+          entity_id: row.entity_id,
+          head_revision_id: newRevision,
+          modified_time: new Date().toISOString(), // Approximate
+          path: row.resolved_path
+        }, handle);
+
+        // 2. Patch any pending queue items for the same entity that are missing file_id
+        await handle.write_queue
+          .where('entity_id').equals(row.entity_id)
+          .filter(q => q.entity_type === row.entity_type && !q.file_id)
+          .modify({ file_id: fileId, base_revision: newRevision });
+      }
+
       await dequeueById(id, handle);
     },
   };

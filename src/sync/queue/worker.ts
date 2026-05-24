@@ -24,6 +24,7 @@ import {
   type DriveClient,
   type FileId,
 } from '../drive/types.js';
+import { ZodError } from 'zod';
 import { reconcileUpdate, type ReconcileOptions } from '../drive/reconcile.js';
 import type { ReconcilerRegistry } from './reconciler.js';
 import type { ProcessOutcome, SyncReport, WriteQueue, WriteQueueItem } from './types.js';
@@ -40,6 +41,11 @@ export interface WorkerOptions {
    * "the reconciler will resolve it" (e.g. via a known kv lookup).
    */
   resolveParent?: (item: WriteQueueItem) => Promise<FileId | null>;
+  /**
+   * Resolver: given a queue item with a missing fileId, attempt to look it up.
+   * Useful for recovering stuck items that missed the queue patch.
+   */
+  resolveFileId?: (item: WriteQueueItem) => Promise<FileId | null>;
 }
 
 /**
@@ -66,10 +72,14 @@ export async function processItem(
       };
     }
 
-    if (item.op === 'create') {
-      // For creates the reconciler builds initial content from an empty base.
-      // `applyEdit` is intentionally used here too so reconcilers stay simple
-      // (one method, two callers).
+    let fileId = item.fileId;
+    if (!fileId && opts.resolveFileId) {
+      fileId = await opts.resolveFileId(item);
+    }
+
+    if (!fileId) {
+      // The file genuinely does not exist locally or on Drive.
+      // We must create it, even if this was somehow an 'update' operation.
       const initialContent = reconciler.applyEdit('', item);
       const parent = await opts.resolveParent?.(item);
       if (!parent) {
@@ -85,12 +95,14 @@ export async function processItem(
         mimeType: 'text/markdown',
         resolvedPath: item.resolvedPath,
       });
-      return { kind: 'applied', newRevision: created.headRevisionId };
+      return { kind: 'applied', newRevision: created.headRevisionId, fileId: created.id };
     }
 
-    // Update path.
-    const result = await reconcileUpdate(opts.drive, reconciler, item, opts.reconcileOptions ?? {});
-    return { kind: 'applied', newRevision: result.newRevision };
+    // The file exists (we have a fileId). We must update it, even if item.op was 'create'
+    // (which is common for ledger appends like expenses).
+    const itemToUpdate = { ...item, fileId };
+    const result = await reconcileUpdate(opts.drive, reconciler, itemToUpdate, opts.reconcileOptions ?? {});
+    return { kind: 'applied', newRevision: result.newRevision, fileId: result.fileId };
   } catch (err) {
     if (err instanceof EditPointMissingError) {
       return { kind: 'dead-letter', error: err.message };
@@ -100,6 +112,9 @@ export async function processItem(
     }
     if (err instanceof ConflictExhaustedError) {
       return { kind: 'retry', error: err.message };
+    }
+    if (err instanceof ZodError) {
+      return { kind: 'dead-letter', error: err.message };
     }
     return { kind: 'retry', error: errorMessage(err) };
   }
@@ -130,7 +145,7 @@ export async function drainAll(opts: WorkerOptions, signal?: AbortSignal): Promi
         // explicit confirmation. `MemoryWriteQueue` ignores this — see its
         // own `markApplied` helper. We use an optional method here so older
         // queue implementations stay valid.
-        await opts.queue.markApplied?.(item.id);
+        await opts.queue.markApplied?.(item.id, outcome.newRevision, outcome.fileId);
         break;
       case 'no-op':
         report.skipped += 1;
@@ -139,7 +154,7 @@ export async function drainAll(opts: WorkerOptions, signal?: AbortSignal): Promi
       case 'retry':
         report.retried += 1;
         await opts.queue.markFailed(item.id, outcome.error, false);
-        break;
+        return report; // Queue stalls on transient failure
       case 'dead-letter':
         report.deadLettered += 1;
         await opts.queue.markFailed(item.id, outcome.error, true);
