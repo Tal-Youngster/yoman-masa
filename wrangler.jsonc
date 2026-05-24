@@ -9,21 +9,9 @@
     "directory": "dist",
   },
   "compatibility_flags": ["nodejs_compat"],
-  "vars": {
-    "VITE_GOOGLE_CLIENT_ID": "933762336306-74pnm16g4r64co0u8tc2d4clvvq57ge1.apps.googleusercontent.com",
-    "VITE_GOOGLE_API_KEY": "AIzaSyBTy5Ff9HKghlnmN9Lm4ac3TzKxr-war8U",
-    "VITE_GEMINI_API_KEY": "AIzaSyCAKzvtWpSwcrsEiISDtXtk6qHblKmRjRs",
-    "VITE_PROTOMAPS_API_KEY": "b774bf096d208261",
-  },
-  "env": {
-    "dev": {
-      "name": "yoman-masa-dev",
-      "vars": {
-        "VITE_GOOGLE_CLIENT_ID": "933762336306-74pnm16g4r64co0u8tc2d4clvvq57ge1.apps.googleusercontent.com",
-        "VITE_GOOGLE_API_KEY": "AIzaSyBTy5Ff9HKghlnmN9Lm4ac3TzKxr-war8U",
-        "VITE_GEMINI_API_KEY": "AIzaSyCAKzvtWpSwcrsEiISDtXtk6qHblKmRjRs",
-        "VITE_PROTOMAPS_API_KEY": "b774bf096d208261",
-      },
-    },
-  },
+  // NOTE: no `vars` here on purpose. This is a static-assets-only Worker, so the
+  // app's VITE_* config is baked into the bundle at `vite build` time — runtime
+  // Worker vars never reach `import.meta.env`. Build-time values come from the
+  // shell environment (local `.env.local`, or GitHub Actions secrets in CI).
+  // See README "Deploying".
 }

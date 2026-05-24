@@ -2,6 +2,7 @@ import { Outlet } from '@tanstack/react-router';
 import { TopBar } from './TopBar';
 import { SideNav } from './SideNav';
 import { BottomNav } from './BottomNav';
+import { InstallBanner } from '@/ui/install/InstallBanner';
 
 export function Shell(): React.JSX.Element {
   return (
@@ -21,6 +22,7 @@ export function Shell(): React.JSX.Element {
         </main>
       </div>
       <BottomNav />
+      <InstallBanner />
     </div>
   );
 }
