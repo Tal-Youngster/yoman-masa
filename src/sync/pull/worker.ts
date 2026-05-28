@@ -29,7 +29,7 @@ import {
   setKV,
   upsertFileMeta,
 } from '@/lib/storage';
-import type { EntityType, TravelDB } from '@/lib/storage';
+import type { TravelDB } from '@/lib/storage';
 
 import type { DriveChange } from '@/sync/drive';
 
@@ -210,7 +210,7 @@ async function handleRemoval(
     report.skipped += 1;
     return;
   }
-  const reconciler = deps.registry.get(fm.entity_type as EntityType);
+  const reconciler = deps.registry.get(fm.entity_type);
   if (!reconciler) {
     report.skipped += 1;
     return;

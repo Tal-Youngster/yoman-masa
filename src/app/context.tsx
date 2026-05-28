@@ -4,6 +4,7 @@ import type { TripsStore } from './trips-store';
 import type { DriveClient } from '@/sync/drive';
 import type { WriteQueue } from '@/sync/queue';
 import type { SyncReport } from '@/sync/queue';
+import type { PullReport } from '@/sync/pull';
 import type { AiClient } from '@/lib/ai/client';
 import type { ExpensesAdminService } from '@/features/expenses';
 import type { TasksAdminService } from '@/features/tasks';
@@ -60,6 +61,13 @@ export interface AppServices {
   expensesAdmin?: ExpensesAdminService;
   /** Tasks mutation surface (S10). Optional so tests can stub. */
   tasksAdmin?: TasksAdminService;
+  /**
+   * Inbound Drive → Dexie sync (ADR-0014). Resolves the configured Travel
+   * folder, runs `pullAll` against the inbound registry, and returns the
+   * report. Returns `null` if no folder is configured or sync is unavailable.
+   * Optional so tests + shells without a real Drive can render.
+   */
+  pullDriveInbound?: () => Promise<PullReport | null>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

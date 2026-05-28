@@ -13,6 +13,8 @@
 import type { DriveClient, FileId } from '@/sync/drive';
 import type { EntityType, TravelDB } from '@/lib/storage';
 
+import type { InboundReconcilerRegistry } from './registry.js';
+
 /**
  * Per-entity-type inbound adapter. Owned by the feature slice — `trips`,
  * `accommodations`, etc. — and registered in {@link InboundReconcilerRegistry}.
@@ -75,5 +77,5 @@ export interface PullDeps {
    *  file ours?". */
   travelFolderId: FileId;
   /** Inbound registry. Defaults to the global singleton via the worker. */
-  registry: import('./registry.js').InboundReconcilerRegistry;
+  registry: InboundReconcilerRegistry;
 }

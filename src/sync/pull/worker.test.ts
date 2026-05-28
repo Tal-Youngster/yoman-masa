@@ -16,7 +16,7 @@ import {
 } from '@/lib/storage';
 
 import { FakeDrive } from '../drive/fake.js';
-import { asFileId } from '../drive/types.js';
+import type { asFileId } from '../drive/types.js';
 
 import { backfill } from './backfill.js';
 import { InboundReconcilerRegistry } from './registry.js';
