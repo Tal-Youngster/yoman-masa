@@ -5,8 +5,9 @@ import type { Trip } from '@/domain/trip';
 import { useAppServices } from '@/app/use-app-services';
 import { upsertPlace } from '../queries';
 import { placeFilePath } from '../paths';
+import { parseGoogleMapsUrl } from '../google-maps-link';
 import { ulid } from 'ulid';
-import { Star, MapPin } from 'lucide-react';
+import { Star, MapPin, Link2 } from 'lucide-react';
 
 export interface PlaceFormProps {
   trip: Trip;
@@ -36,6 +37,10 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
   const [searchResults, setSearchResults] = useState<SearchSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  const [linkInput, setLinkInput] = useState('');
+  const [isResolvingLink, setIsResolvingLink] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const [placeId, setPlaceId] = useState(initial?.place_id ?? '');
   const [placeAlias, setPlaceAlias] = useState(initial?.place_alias ?? '');
@@ -67,8 +72,8 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placeId]);
 
-  async function fetchPlaceDetails(id: string) {
-    if (!GOOGLE_API_KEY) return;
+  async function fetchPlaceDetails(id: string): Promise<EnrichedDetails | null> {
+    if (!GOOGLE_API_KEY) return null;
     setIsLoadingDetails(true);
     try {
       const res = await fetch(`https://places.googleapis.com/v1/places/${id}`, {
@@ -80,11 +85,90 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
       if (!res.ok) throw new Error('Failed to fetch details');
       const data = await res.json() as EnrichedDetails;
       setEnrichedDetails(data);
+      return data;
     } catch (err) {
       console.error(err);
+      return null;
     } finally {
       setIsLoadingDetails(false);
     }
+  }
+
+  /** Resolve a pasted Google Maps URL to a Google place_id, then enrich it like a search pick. */
+  async function resolveGoogleMapsLink(value: string) {
+    setLinkError(null);
+    const parsed = parseGoogleMapsUrl(value);
+    if (!parsed) {
+      setLinkError("Couldn't read that as a Google Maps link or coordinates.");
+      return;
+    }
+    if (parsed.shortened) {
+      setLinkError(
+        'Shortened links (maps.app.goo.gl) can’t be opened here. Open the link, then copy the full URL from the address bar — or use search above.',
+      );
+      return;
+    }
+
+    // Best case: the link carried a real Places id (api=1 share links).
+    if (parsed.placeId) {
+      applyResolvedPlaceId(parsed.placeId, parsed.name);
+      return;
+    }
+
+    // Otherwise resolve the coordinates/name to a canonical Google place via Text Search.
+    if (!GOOGLE_API_KEY) {
+      setLinkError('Google API key missing.');
+      return;
+    }
+    const textQuery = parsed.name ?? (parsed.lat !== undefined ? `${parsed.lat},${parsed.lng}` : '');
+    if (!textQuery) {
+      setLinkError('That link had no usable place or coordinates.');
+      return;
+    }
+
+    setIsResolvingLink(true);
+    try {
+      const body: Record<string, unknown> = { textQuery, maxResultCount: 1 };
+      if (parsed.lat !== undefined && parsed.lng !== undefined) {
+        body.locationBias = {
+          circle: { center: { latitude: parsed.lat, longitude: parsed.lng }, radius: 500 },
+        };
+      }
+      const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_API_KEY,
+          'X-Goog-FieldMask': 'places.id,places.displayName',
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 403) {
+        throw new Error('403 Forbidden. Enable "Places API (New)" for this key.');
+      }
+      if (!res.ok) throw new Error('Lookup failed.');
+      const data = (await res.json()) as { places?: { id: string; displayName?: { text: string } }[] };
+      const top = data.places?.[0];
+      if (!top) {
+        setLinkError('No matching place found for that link. Try searching by name instead.');
+        return;
+      }
+      applyResolvedPlaceId(top.id, parsed.name ?? top.displayName?.text);
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsResolvingLink(false);
+    }
+  }
+
+  function applyResolvedPlaceId(id: string, name?: string) {
+    if (!isEdit && existingPlaces.some((p) => p.place_id === id)) {
+      setLinkError('This place is already in your list!');
+      return;
+    }
+    setPlaceId(id); // triggers the details fetch effect
+    if (name && !placeAlias) setPlaceAlias(name);
+    setLinkInput('');
   }
 
   async function handleSubmit(ev: React.FormEvent) {
@@ -94,13 +178,21 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
     setSubmitting(true);
     setError(null);
     try {
+      // A place is useless on the map without coordinates. If the async enrichment
+      // hasn't landed yet (e.g. user submitted immediately after pasting a link),
+      // fetch details synchronously so we never persist a coordinate-less place.
+      let details = enrichedDetails;
+      if (details?.location === undefined && GOOGLE_API_KEY) {
+        details = await fetchPlaceDetails(placeId.trim());
+      }
+
       const placeData = {
         trip_id: trip.id,
         place_id: placeId.trim(),
         place_alias: placeAlias.trim() || undefined,
         category: category.trim() || undefined,
-        lat: enrichedDetails?.location?.latitude ?? initial?.lat,
-        lng: enrichedDetails?.location?.longitude ?? initial?.lng,
+        lat: details?.location?.latitude ?? initial?.lat,
+        lng: details?.location?.longitude ?? initial?.lng,
         visited,
         notes: notes.trim(),
       };
@@ -236,6 +328,37 @@ export function PlaceForm({ trip, existingPlaces, initial, onSuccess, onCancel }
                   </li>
                 ))}
               </ul>
+            )}
+          </div>
+        )}
+
+        {!isEdit && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-on-surface">Or paste a Google Maps link</label>
+            <div className="flex items-start gap-2">
+              <div className="flex-1">
+                <Input
+                  value={linkInput}
+                  onChange={(e) => { setLinkInput(e.target.value); setLinkError(null); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); void resolveGoogleMapsLink(linkInput); }
+                  }}
+                  placeholder="maps.app… URL, /maps/place… URL, or lat,lng"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={() => void resolveGoogleMapsLink(linkInput)}
+                disabled={isResolvingLink || !linkInput.trim()}
+                className="h-10 shrink-0"
+              >
+                <Link2 className="w-4 h-4" />
+                {isResolvingLink ? 'Adding…' : 'Add'}
+              </Button>
+            </div>
+            {linkError && <p className="text-xs text-red-400">{linkError}</p>}
+            {placeId && !linkError && (
+              <p className="text-xs text-green-500">Place added — review the details below and save.</p>
             )}
           </div>
         )}
