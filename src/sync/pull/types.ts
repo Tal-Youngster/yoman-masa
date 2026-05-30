@@ -45,6 +45,15 @@ export interface InboundReconciler<E = unknown> {
   upsertEntity(entity: E, db: TravelDB): Promise<void>;
   /** Idempotent delete by id. Used when Drive reports the file removed. */
   deleteEntity(entityId: string, db: TravelDB): Promise<void>;
+  /**
+   * All locally-known entity ids of this type. Backfill uses this to enforce
+   * the "Drive is source of truth" policy (ADR-0014 addendum): any local
+   * entity not seen during the walk is dropped unless it has a pending
+   * write_queue row (i.e. it's mid-flight, not orphan).
+   *
+   * Implementations should return primary keys from the slice's Dexie table.
+   */
+  listEntityIds(db: TravelDB): Promise<readonly string[]>;
 }
 
 /**

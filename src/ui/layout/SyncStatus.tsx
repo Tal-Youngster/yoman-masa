@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getKV } from '@/lib/storage';
+import { db, getKV, deleteKV } from '@/lib/storage';
 import { useAppServices } from '@/app/use-app-services';
-import { Cloud, CloudOff, RefreshCw, AlertTriangle, FolderOpen, HardDrive } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, AlertTriangle, FolderOpen, HardDrive, DownloadCloud } from 'lucide-react';
 
 /**
  * Top-bar Drive sync state + Drive configuration.
@@ -184,6 +184,37 @@ export function SyncStatus(): React.JSX.Element | null {
     }
   };
 
+  /**
+   * "Resync from Drive" — the user's escape hatch when local Dexie drifts
+   * from the vault. Per the ADR-0014 addendum, backfill is now the only mode
+   * that enforces "Drive is source of truth": clear the change token so the
+   * next pullDriveInbound goes through the backfill path and runs the
+   * aggressive reconcileAll sweep.
+   *
+   * Outbound is flushed first so a draft trip the user just created doesn't
+   * get wiped by the sweep. Pending writes are also preserved by reconcileAll
+   * directly, but flushing first is the cheap belt-and-braces.
+   */
+  const handleResyncFromDrive = async (): Promise<void> => {
+    if (!tripsAdmin || !pullDriveInbound) return;
+    if (
+      !window.confirm(
+        'Resync from Drive will delete any local data that isn’t on Drive. Pending writes are preserved. Continue?',
+      )
+    ) {
+      return;
+    }
+    setErrorMsg(null);
+    setSyncing(true);
+    try {
+      await tripsAdmin.syncNow();
+      await deleteKV('drive_changes_page_token', db);
+      await pullDriveInbound();
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -256,6 +287,16 @@ export function SyncStatus(): React.JSX.Element | null {
             >
               <RefreshCw className={`h-4 w-4 shrink-0 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing…' : 'Sync now'}
+            </button>
+            <button
+              onClick={() => void handleResyncFromDrive()}
+              disabled={syncing || !tripsAdmin || !pullDriveInbound || !travelFolderId}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-variant transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 disabled:opacity-60"
+              data-testid="sync-resync-from-drive"
+              title="Drop any local data that isn’t on Drive (pending writes are preserved)."
+            >
+              <DownloadCloud className="h-4 w-4 shrink-0" />
+              Resync from Drive
             </button>
             {pickError && (
               <p className="text-xs text-red-500" role="alert">
