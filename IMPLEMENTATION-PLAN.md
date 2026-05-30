@@ -4,6 +4,15 @@ Multi-agent dispatch plan for the Travel Journal app. Each slice is sized to be 
 
 ## Status
 
+### In-flight (open PRs)
+
+Land order: **S10 → S8b → auth → S14** (smallest-first / least-conflict-first).
+
+- **S10 — Tasks: quick-add + recurrence/manual-order ADRs** — `slice/S10-tasks` (1 commit). The S10 baseline (parser, queries, reconciler, list/form/dashboard) shipped directly to `main` earlier; this PR adds the `QuickAddTask` + `TaskRow` components, `quick-parse` utility (8 tests), and ADR-0011 (recurrence) + ADR-0012 (manual order) as forward-looking decisions. No schema migration. Gates green (typecheck, 371/371, lint).
+- **S8b — Places: Google Maps pivot** — `slice/S8b-places-google-maps` (1 commit, ADR-0013 supersedes ADR-0005). Drops `maplibre-gl` + `pmtiles`, adds `@vis.gl/react-google-maps`, replaces `lib/maps/MapLibreMap` with `lib/maps/GoogleMap` (thin `<APIProvider>` + `<Map>` wrapper), introduces `features/places/components/PlacesMap` (Advanced Markers + bounds-fit controller), and a `google-maps-link` helper. `.env.example` switches `VITE_PROTOMAPS_API_KEY` → `VITE_GOOGLE_MAP_ID`. Gates green (typecheck, 369/369, lint).
+- **Drive auth persistence** — `feat/drive-auth-persistence` (1 commit, ADR-0003 amendment). Adds optional `AuthPersistence` to `DriveAuth` so a page refresh rehydrates the short-lived (~1h) access token from `localStorage` and skips the GIS round-trip; caches the user's email from `oauth2/v3/userinfo` for `loginHint` on silent re-auth. Refresh-token rule stands. Wired in `main.tsx` with a localStorage-backed implementation; tests cover load/save/expiry. Gates green (typecheck, 368/368, lint).
+- **S14 — Inbound Drive sync** — `slice/S14-inbound-sync` (4 commits, ADR-0014). Closes the "Drive as source of truth" gap. Adds the inbound pull subsystem at `src/sync/pull/` (change-feed worker + first-run backfill, parallel to the outbound `src/sync/queue/`), a per-entity inbound reconciler interface (first registration is `tripInboundReconciler`), `useDriveInboundSync` hook mounted in the shell that fires on mount / focus / `online` / folder change with overlapping-trigger coalescing. Gates green (typecheck, 377/377, lint).
+
 ### Completed
 
 - **S0 — Scaffolding + domain foundation** (4 commits on `main`)
@@ -20,8 +29,17 @@ Multi-agent dispatch plan for the Travel Journal app. Each slice is sized to be 
   - **S4 — App shell** (8 commits): `src/app/` + `src/ui/{components,layout}/` — TanStack Router (code-based, 8 placeholder routes), `Shell` / `TopBar` / `SideNav` / `BottomNav` / `TripSwitcher`, `Button` / `Input` / `Card` / `Sheet` primitives (native `<dialog>`), in-memory `KVStore` interface ready for Dexie swap. jsdom@25 pinned (Node 20.17 floor). 28 new tests.
   - **Merge & integration**: 4 `--no-ff` merges into `main`; trivial `package.json` resolution on S4; `src/app/dexie-kv-store.ts` adapter wires S4's `KVStore` to S2's `getKV` / `setKV` / `deleteKV`. All gates green: typecheck, lint, 177/177 tests, `vite build` (321 KB / 100 KB gzipped).
 
-- **Phase 2 — Spine** (S5, 8 commits on `slice/S5-trips` → PR open)
-  - **S5 — Trips** (8 commits): first end-to-end Drive-backed flow. v2→v3 write_queue migration adds `file_id` + `resolved_path` columns plus non-destructive `peekNextPending` / `dequeueById` helpers (keeping `drainNext` destructive for Phase-1 callers). Dexie-backed `WriteQueue` adapter (`src/sync/queue/dexie-queue.ts`) translates between S2's snake_case + epoch-ms rows and S3's camelCase + ISO `WriteQueueItem`; deadletters legacy v2 rows with empty `resolved_path`. `src/features/trips/` ships the trip parser/serializer with body preservation (8 fixture tests + 1000-run fast-check), slug derivation with NFKD + Unicode fallback, Dexie + Drive queries, the trip reconciler (creates emit frontmatter-only files), the JSON `activeConfigReconciler` for `<travel>/.travel/config.json`, and the full UI: `TripsList` (status-filter chips), `TripForm` (live slug preview, immutable post-create slug, editable currency + status + dates), `FirstRunFolderPrompt` (wraps S3's `pickFolder`), and `TripsRoute`. `src/app/trips-admin.ts` combines local persistence + write-queue enqueue + drainAll into one service exposed via the AppServices context. Integration tests against FakeDrive demonstrate the full read → write → re-read → reapply path including mid-flight + three-fold conflicts. 233/233 tests green.
+- **Phase 2 — Spine** (S5, merged via `slice/S5-trips`)
+  - **S5 — Trips**: first end-to-end Drive-backed flow. v2→v3 write_queue migration adds `file_id` + `resolved_path` columns plus non-destructive `peekNextPending` / `dequeueById` helpers (keeping `drainNext` destructive for Phase-1 callers). Dexie-backed `WriteQueue` adapter (`src/sync/queue/dexie-queue.ts`) translates between S2's snake_case + epoch-ms rows and S3's camelCase + ISO `WriteQueueItem`; deadletters legacy v2 rows with empty `resolved_path`. `src/features/trips/` ships the trip parser/serializer with body preservation (8 fixture tests + 1000-run fast-check), slug derivation with NFKD + Unicode fallback, Dexie + Drive queries, the trip reconciler (creates emit frontmatter-only files), the JSON `activeConfigReconciler` for `<travel>/.travel/config.json`, and the full UI: `TripsList` (status-filter chips), `TripForm` (live slug preview, immutable post-create slug, editable currency + status + dates), `FirstRunFolderPrompt` (wraps S3's `pickFolder`), and `TripsRoute`. `src/app/trips-admin.ts` combines local persistence + write-queue enqueue + drainAll into one service exposed via the AppServices context.
+
+- **Phase 3 — Features** (S6, S7, S8, S10 baseline — merged)
+  - **S6 — Accommodations + Missing Nights** (PR #6): file-per-accommodation under `Travel/Trips/<slug>/Accommodations/`, parser with body preservation, attachments path, missing-nights dashboard card wired to `computeMissingNights`.
+  - **S7 — Expenses + FX**: monthly ledger files, line-level patching by `^e-<ulid>` block-ref, Frankfurter integration with snapshot conversions per ADR-0008. Later passes added the curated `CurrencyPicker`, home-currency category totals + pie chart, and adopted the picker in `TripForm` and `ExpenseForm`.
+  - **S8 — Wishlist places + map** (PR #7): place CRUD with map view. Originally built on MapLibre + Protomaps PMTiles per ADR-0005. **Superseded mid-feature by S8b (ADR-0013)** — see In-flight above for the Google Maps pivot.
+  - **S10 — Tasks baseline** (3 commits direct to `main`): line parser + serializer (Obsidian Tasks emoji syntax per ADR-0004), reconciler registered with the queue worker, queries + `tasksAdmin` service, and the UI (`TasksRoute`, `TasksList`, `TaskForm`, `TasksDashboardCard`). The quick-add UX + ADR-0011 (recurrence) + ADR-0012 (manual order) are the in-flight follow-up PR above.
+
+- **Phase 5 — Ship** (S13, PR #12)
+  - **S13 — PWA polish + Cloudflare Workers deploy**: app icons generated from `public/logo.svg` (192, 512, maskable 512, favicon, apple-touch), install-prompt banner (`InstallBanner.tsx`) on `beforeinstallprompt` capture, `wrangler.jsonc` Cloudflare Workers config (secrets injected, not baked), GitHub Actions CI (`.github/workflows/ci.yml`) running lint + typecheck + test + deploy on push to `main`, Node 22 for wrangler v4. README updated with deploy + setup. Followed up by PR #13 (sync stabilization: `fix(sync): stop the stale-Drive-folder 404 sync loop` + `auto-resume sync when the Travel folder is re-picked`).
 
 ## Phase map
 
@@ -488,6 +506,8 @@ Multi-currency expense tracking with snapshot conversions (ADR-0008) and categor
 - **Owned directories:** `src/features/places/`, `src/lib/maps/`
 - **Branch:** `slice/S8-places`
 
+> **Pivot (2026-05-30):** S8 merged on MapLibre + Protomaps PMTiles, then was superseded mid-feature by **S8b** (ADR-0013) — `@vis.gl/react-google-maps`, Advanced Markers, no PMTiles pre-download. The S8 spec below is preserved for history; the live implementation matches S8b. S9 builds on S8b's `lib/maps/GoogleMap`, not the deprecated `MapLibreMap`.
+
 ### Goal
 
 Wishlist places CRUD with a map view; foundation for the path map (S9).
@@ -540,42 +560,61 @@ Wishlist places CRUD with a map view; foundation for the path map (S9).
 ## S9 — Path map
 
 - **Phase:** 4 — Composition
-- **Depends on:** S6, S8
+- **Depends on:** S6 (accommodations), S8b (Google Maps pivot — `lib/maps/GoogleMap` must be on `main`)
 - **Owned directories:** `src/features/path-map/`
 - **Branch:** `slice/S9-path-map`
 
+> **Re-spec note (2026-05-30):** The original S9 spec targeted MapLibre — that stack is gone (ADR-0013). This spec composes with `@vis.gl/react-google-maps` instead. **Read ADR-0015 first** — it locks the path-rendering choice (native `google.maps.Polyline` via a `<PathLayer>` child) and explains why the alternatives (Directions, Deck.gl) were rejected.
+
 ### Goal
 
-The "where I've been" map: date-ordered polyline from accommodations + visited places, layered atop S8's map.
+The "where I've been" map: a date-ordered polyline drawn from accommodation check-ins + visited places, rendered atop the shared `GoogleMap` from S8b. Per ADR-0015 the polyline is a `google.maps.Polyline` managed by a small `<PathLayer>` component using `useMap()`.
 
 ### Scope (in)
 
-- Date-ordered concatenation of accommodation coordinates and visited places.
-- Polyline layer atop the shared `MapLibreMap` from S8.
-- Toggle between "include wishlist" and "path only".
-- Date scrubber: time-slider that limits the visible path up to a chosen date.
+- **`computePath` (pure function).** Date-ordered concatenation of accommodation coordinates (by `check_in`) and visited places (by `visited_date`). Returns `LatLngLiteral[]`. Framework-free so tests run in Node. Tie-breaking, ties on the same date, and accommodations with missing coordinates are spelled out in the test corpus.
+- **`<PathLayer>` component.** Child of `<GoogleMap>`. Calls `useMap()`, creates a single `google.maps.Polyline`, applies styling per ADR-0015 (`#2563eb` stroke, 3 px, 0.85 opacity), `setPath`s on prop change, `setMap(null)` on unmount. Returns `null`.
+- **`<PathMapRoute>`** — the route. Mounts `<GoogleMap>` directly (not via `PlacesMap`); renders an `<AdvancedMarker>` for each accommodation + visited place, the `<PathLayer>`, and the date scrubber underneath.
+- **Toggle:** "include wishlist" vs "path only". When wishlist is on, render non-visited places with the wishlist pin colour from `PlacesMap` (`#e0413e`). Off by default.
+- **Date scrubber.** A range input that filters the polyline points and markers up to a chosen date. Filtering happens in React state from the full `computePath` output — `computePath` itself stays deterministic.
+- **Deep-link from Dashboard.** The Path-map route is reachable from the existing Dashboard tab and the bottom nav slot already wired in S4.
 
 ### Scope (out)
 
-- Animation playback (defer).
+- Animation playback (deferred — covered by an "if/when" clause in ADR-0015).
+- Antimeridian segment splitting (deferred — see ADR-0015 sharp edges).
+- Editing waypoints from the map (read-only view; editing lives in S6 / S8b).
+
+### Sharp edges (extending ADR-0015)
+
+- **`useMap()` returns `null` on first render.** Same guard the existing `MapController` inside `PlacesMap` uses — `if (!map) return;` inside the effect.
+- **`setPath` vs new `Polyline`.** Mutate, don't recreate. Recreating flickers because Google removes the old overlay before mounting the new one.
+- **Cleanup on unmount.** `polyline.setMap(null)` in the effect cleanup is non-negotiable.
+- **`computePath` purity.** Don't compute live in the JSX — memoize once per `(accommodations, places)` input pair via `useMemo`. The scrubber slices the memoized array, doesn't recompute.
+- **Reused styling.** Pull the wishlist / visited pin colours from a shared constant rather than redefining them — they have to match `PlacesMap`.
 
 ### Deliverables
 
-- `src/features/path-map/computePath.ts`, `*.test.ts` (pure function)
-- `src/features/path-map/components/{Route,PathLayer,DateScrubber}.tsx`
+- `src/features/path-map/computePath.ts`, `computePath.test.ts` (pure function — fixture corpus with tie-breaking, missing-coord, and date-ordering cases)
+- `src/features/path-map/components/PathLayer.tsx` (the `useMap()` + `Polyline` controller)
+- `src/features/path-map/components/PathMapRoute.tsx`
+- `src/features/path-map/components/DateScrubber.tsx`
+- Optional: a shared `src/features/places/colors.ts` (or similar) if the pin-colour constants need extracting from `PlacesMap` to avoid drift.
 
 ### Acceptance
 
-- Pure `computePath` returns correctly ordered `[lng, lat][]` for a given set of accommodations + visited places.
-- Toggles and scrubber update the visible layer without remounting the map.
+- `computePath` round-trips a 10+ entry fixture with the expected `LatLngLiteral[]`.
+- `PathLayer` mounts inside `GoogleMap`, draws the polyline, and updates without remounting the map when the path or scrubber changes (assert via render counts in test).
+- Toggles and scrubber update the visible layer without remounting `<APIProvider>` / `<Map>`.
+- ADR-0015 referenced from the PR description.
 
 ### Kickoff prompt
 
-> You are picking up slice **S9 — Path map** for the Travel Journal project. Read `CLAUDE.md`, then `IMPLEMENTATION-PLAN.md` (your slice section). You depend on S6 (accommodations) and S8 (places + `MapLibreMap`).
+> You are picking up slice **S9 — Path map** for the Travel Journal project. Read `CLAUDE.md`, then `IMPLEMENTATION-PLAN.md` (your slice section), then **`docs/adr/0015-path-map-on-google-maps.md`** (it locks the rendering choice), then `docs/adr/0013-places-google-maps.md` for context. You depend on S6 (accommodations) and the merged S8b Google Maps pivot.
 >
-> Your goal: a pure `computePath` function (date-ordered) and a `PathLayer` that composes with S8's `MapLibreMap`, plus a date scrubber.
+> Your goal: a pure `computePath` function (date-ordered, framework-free), a `<PathLayer>` component that composes with `lib/maps/GoogleMap` via `useMap()`, a `<DateScrubber>`, and a `<PathMapRoute>` that mounts the map directly with its own marker set (do **not** route through `PlacesMap`).
 >
-> Branch: `slice/S9-path-map`. Don't fork S8's map — extend it. Open a PR titled `S9 — Path map` when gates are green.
+> Branch: `slice/S9-path-map`. Don't fork `GoogleMap` — consume it. The polyline must be mutated via `setPath`, not recreated. Open a PR titled `S9 — Path map` when gates are green.
 
 ---
 

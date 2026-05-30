@@ -98,12 +98,17 @@ The data model and auth choices were made so these don't require a rewrite later
 | Why Vite + React 19 + Tailwind 4?       | ADR-0002 |
 | Why full Drive scope?                   | ADR-0003 |
 | Markdown conventions (Tasks, Dataview)? | ADR-0004 |
-| Why MapLibre + PMTiles?                 | ADR-0005 |
+| Why MapLibre + PMTiles?                 | ADR-0005 — **superseded by ADR-0013** |
 | Conflict resolution algorithm?          | ADR-0006 |
 | Identity?                               | ADR-0007 |
 | FX rate source + snapshot conversions?  | ADR-0008 |
 | Hosting + secrets?                      | ADR-0009 |
 | Multi-trip layout + invariants?         | ADR-0010 |
+| Task recurrence model?                  | ADR-0011 |
+| Task manual order?                      | ADR-0012 |
+| Why Google Maps (replaces ADR-0005)?    | ADR-0013 |
+| Inbound Drive → Dexie sync?             | ADR-0014 |
+| Path map rendering on Google Maps?      | ADR-0015 |
 
 ## When to ask the user
 
