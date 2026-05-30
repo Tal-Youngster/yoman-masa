@@ -158,3 +158,71 @@ slice that wires expenses/tasks inbound.
   Each Trip.md is a `getContent` round-trip. Acceptable for the personal-
   scale vault target but worth surfacing in the UI as "Importing…" if
   the count grows.
+
+## Addendum (2026-05-30): aggressive backfill reconciliation
+
+The original `reconcileMissing` only iterated `file_meta` rows: it dropped
+entities whose Drive file was gone, but it never touched an entity that had
+**no `file_meta` row at all**. That left a real footgun — an outbound write
+that dead-lettered (or never started, e.g. because of the prefix-nesting
+bug fixed in `fix(sync): strip Travel/ prefix in resolveParent so writes
+don't nest`) left the entity in Dexie forever, with no Drive file behind
+it and no reconciliation path to clean it up. The app reported trips that
+the vault didn't.
+
+**Updated policy:** the user owns the vault. Drive is the canonical state.
+Backfill should reconcile Dexie *down* to whatever Drive surfaced, not just
+the subset Dexie happened to track via `file_meta`.
+
+### What changed
+
+`reconcileMissing` is renamed `reconcileAll` and now runs two passes per
+registered inbound reconciler:
+
+1. **Enumerate every entity** of the reconciler's type via the new
+   `InboundReconciler.listEntityIds(db)` method. Any id not seen during
+   the walk is dropped — entity row + any associated `file_meta`. This
+   catches local-only orphans the old code couldn't see.
+2. **Sweep stale file_meta rows** whose `file_id` we didn't visit. The
+   original behavior, kept as belt-and-braces against partial states
+   left by earlier code paths.
+
+Both passes preserve the in-flight guard from before: an entity with a
+pending `write_queue` row is *never* dropped — that's the signal that a
+local create/update is mid-flight. It'll either succeed (Drive will then
+surface it on the next pull) or terminally dead-letter (the next backfill
+sweeps it).
+
+### Why backfill-mode-only
+
+The change-feed path keeps the existing per-event `handleRemoval` — that's
+correct for incremental deltas. Aggressive sweep there would be wrong
+because change-feed mode sees *changes*, not the alive set, so it can't
+tell "Drive doesn't have it" from "Drive didn't mention it in this batch."
+
+Backfill mode runs when `drive_changes_page_token` is null, which happens
+on:
+
+- first-time pull on a device,
+- after the user explicitly clicks "Resync from Drive" in the SyncStatus
+  popover (which deletes the token before calling `pullDriveInbound`).
+
+The UI action flushes outbound first via `tripsAdmin.syncNow()` so a
+draft-just-typed trip isn't lost to the sweep — defence in depth on top of
+the pending-write guard.
+
+### Interface surface
+
+```ts
+export interface InboundReconciler<E = unknown> {
+  // ... existing members unchanged ...
+
+  /** All locally-known entity ids of this type. Backfill uses this to
+   *  drop entities that aren't on Drive (modulo pending writes). */
+  listEntityIds(db: TravelDB): Promise<readonly string[]>;
+}
+```
+
+Each slice's reconciler implements this with one Dexie query — typically
+`db.<table>.toCollection().primaryKeys()` followed by a defensive string
+filter.
