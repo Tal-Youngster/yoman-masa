@@ -27,7 +27,12 @@ export {
   guardWrite,
 } from './guard.js';
 export { FakeDrive, FOLDER_MIME } from './fake.js';
-export { DriveAuth, type AuthConfig, type AuthEventListener } from './auth.js';
+export {
+  DriveAuth,
+  type AuthConfig,
+  type AuthEventListener,
+  type AuthPersistence,
+} from './auth.js';
 export { RealDriveClient, type RealDriveClientOptions } from './client.js';
 export { openFolderPicker, type PickerOptions } from './picker.js';
 export { reconcileUpdate, type ReconcileOptions, type ReconcileResult } from './reconcile.js';

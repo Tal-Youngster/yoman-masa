@@ -33,3 +33,14 @@ The app must read and write existing files in the user's Obsidian vault (Tasks.m
 - Drive `update` doesn't honor `If-Match` on file _content_ — conflict detection is "re-GET headRevisionId after write, retry if it changed mid-flight". Bounded retry budget (3); after that, surface to user.
 - Incognito mode and tracking-protection settings can break silent re-auth.
 - The safety guard is the only thing standing between a bug and arbitrary writes to the user's Drive. Cover it with tests.
+
+## Amendments
+
+### 2026-05-28 — Access-token persistence + cached login hint
+
+The "no refresh tokens client-side" rule stands. Two narrow additions:
+
+- The **access token** (the same short-lived ~1h token GIS already returns) is persisted to `localStorage` so a page refresh doesn't have to round-trip GIS at all. After expiry, the silent flow runs normally. This is not a refresh token; it cannot mint new tokens.
+- The user's **email** is fetched once via `oauth2/v3/userinfo` after the first successful token, persisted, and supplied as `loginHint` on subsequent silent requests. This makes GIS's silent flow resolve without showing the account chooser when multiple Google accounts are signed in.
+
+Trade-off: a live access token sits in `localStorage`. Any XSS on the app origin can read it. Mitigations stay the same as for the rest of the app: no untrusted third-party JS, strict dependency review.

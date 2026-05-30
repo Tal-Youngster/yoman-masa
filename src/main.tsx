@@ -4,7 +4,14 @@ import { AppRoot } from './app/AppRoot';
 import { createDexieKVStore } from './app/dexie-kv-store';
 import { createDexieTripsStore } from './app/trips-store';
 import { createTripsAdmin } from './app/trips-admin';
-import { DriveAuth, RealDriveClient, openFolderPicker, FakeDrive, asFileId } from './sync/drive';
+import {
+  DriveAuth,
+  RealDriveClient,
+  openFolderPicker,
+  FakeDrive,
+  asFileId,
+  type AuthPersistence,
+} from './sync/drive';
 import { createDexieWriteQueue } from './sync/queue';
 import { db } from './lib/storage';
 import { registerTripReconcilers } from './features/trips/register';
@@ -30,9 +37,64 @@ const geminiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
 import type { DriveClient } from './sync/drive';
 import { GeminiClient } from './lib/ai/client';
 
+/**
+ * localStorage-backed auth persistence. ADR-0003 forbids storing refresh
+ * tokens; the access token here is the short-lived (~1h) one, persisted only
+ * so a page reload doesn't have to round-trip GIS. Tradeoff: any XSS on the
+ * app origin can read it. Acceptable for a single-user PWA with no 3p JS.
+ */
+const TOKEN_KEY = 'drive.accessToken.v1';
+const HINT_KEY = 'drive.loginHint.v1';
+function createLocalStoragePersistence(): AuthPersistence | undefined {
+  if (typeof localStorage === 'undefined') return undefined;
+  return {
+    loadToken() {
+      try {
+        const raw = localStorage.getItem(TOKEN_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as unknown;
+        if (
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          typeof (parsed as { accessToken?: unknown }).accessToken === 'string' &&
+          typeof (parsed as { expiresAt?: unknown }).expiresAt === 'number'
+        ) {
+          return parsed as { accessToken: string; expiresAt: number };
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    },
+    saveToken(token) {
+      try {
+        if (token) localStorage.setItem(TOKEN_KEY, JSON.stringify(token));
+        else localStorage.removeItem(TOKEN_KEY);
+      } catch {
+        // Storage might be full / disabled; persistence is best-effort.
+      }
+    },
+    loadHint() {
+      try {
+        return localStorage.getItem(HINT_KEY);
+      } catch {
+        return null;
+      }
+    },
+    saveHint(hint) {
+      try {
+        localStorage.setItem(HINT_KEY, hint);
+      } catch {
+        // Best-effort.
+      }
+    },
+  };
+}
+
 let drive: DriveClient;
 if (clientId && developerKey) {
-  const auth = new DriveAuth({ clientId });
+  const persistence = createLocalStoragePersistence();
+  const auth = new DriveAuth({ clientId, ...(persistence ? { persistence } : {}) });
   drive = new RealDriveClient({
     auth,
     allowedPrefix: 'Travel',
