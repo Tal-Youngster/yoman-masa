@@ -8,11 +8,14 @@ export type KVKey =
   | 'active_trip_id'
   | 'vault_root_file_id'
   | 'travel_folder_file_id'
+  /** Captured at pick time so the SyncStatus popover can render a folder name
+   *  without round-tripping `drive.getMetadata`. Offline-safe. */
+  | 'travel_folder_name'
   | 'drive_changes_page_token';
 
 export type KVValue<K extends KVKey> = K extends 'active_trip_id'
   ? string | null
-  : K extends 'vault_root_file_id' | 'travel_folder_file_id'
+  : K extends 'vault_root_file_id' | 'travel_folder_file_id' | 'travel_folder_name'
     ? string | null
     : K extends 'drive_changes_page_token'
       ? string | null

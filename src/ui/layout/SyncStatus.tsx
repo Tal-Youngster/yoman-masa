@@ -2,22 +2,38 @@ import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, getKV } from '@/lib/storage';
 import { useAppServices } from '@/app/use-app-services';
-import { Cloud, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, AlertTriangle, FolderOpen, HardDrive } from 'lucide-react';
 
+/**
+ * Top-bar Drive sync state + Drive configuration.
+ *
+ * Drives the cloud icon (state) and a click-to-open popover that surfaces:
+ *  - the picked Travel folder name (offline-safe — captured at pick time and
+ *    persisted in KV; see `travel_folder_name`),
+ *  - the live sync status as text (mirrors the icon),
+ *  - the last sync error message + the failing item's `last_error` payload
+ *    when present,
+ *  - "Change folder" → re-runs the Picker (the same flow `AccountMenu` used
+ *    to host),
+ *  - "Sync now" → drains the write queue and triggers an inbound pull.
+ *
+ * Auto-sync behaviour (1.5s debounce, error latching, online/offline
+ * handling) is unchanged — only the popover wraps it now.
+ */
 export function SyncStatus(): React.JSX.Element | null {
-  const { tripsAdmin } = useAppServices();
-  
-  // We only want to run sync if the user is logged in / auth is initialized.
-  // We can just rely on the AccountMenu/TopBar mounting condition.
-  
+  const { tripsAdmin, drive, kv, pullDriveInbound } = useAppServices();
+
   const [syncing, setSyncing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  
+  const [pickBusy, setPickBusy] = useState(false);
+  const [pickError, setPickError] = useState<string | null>(null);
+
   const pendingCount = useLiveQuery(() => db.write_queue.count(), []) ?? 0;
   const firstPending = useLiveQuery(() => db.write_queue.orderBy('created_at').first(), []);
   // `undefined` while loading; `null` when no folder is configured.
   const travelFolderId = useLiveQuery(() => getKV('travel_folder_file_id'), []);
+  const travelFolderName = useLiveQuery(() => getKV('travel_folder_name'), []);
   const lastFolderId = useRef<string | null | undefined>(undefined);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -39,7 +55,7 @@ export function SyncStatus(): React.JSX.Element | null {
       setErrorMsg(null); // Clear error to re-trigger sync
     };
     const handleOffline = () => setIsOnline(false);
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -69,7 +85,7 @@ export function SyncStatus(): React.JSX.Element | null {
           if (!mounted) return;
           setSyncing(true);
           const report = await tripsAdmin.syncNow();
-          
+
           // We MUST update state even if the effect cleaned up (e.g. pendingCount changed)
           // otherwise the syncing animation gets stuck forever!
           setSyncing(false);
@@ -104,60 +120,149 @@ export function SyncStatus(): React.JSX.Element | null {
 
   // Icon logic
   let Icon = Cloud;
-  let iconClass = "text-green-500";
-  let bgClass = "bg-green-500/10";
-  
+  let iconClass = 'text-green-500';
+  let bgClass = 'bg-green-500/10';
+
   if (syncing) {
     Icon = RefreshCw;
-    iconClass = "text-primary animate-spin";
-    bgClass = "bg-primary/10";
+    iconClass = 'text-primary animate-spin';
+    bgClass = 'bg-primary/10';
   } else if (hasError) {
     Icon = AlertTriangle;
-    iconClass = "text-red-500";
-    bgClass = "bg-red-500/10";
+    iconClass = 'text-red-500';
+    bgClass = 'bg-red-500/10';
   } else if (!isSynced) {
     Icon = CloudOff;
-    iconClass = "text-amber-500";
-    bgClass = "bg-amber-500/10";
+    iconClass = 'text-amber-500';
+    bgClass = 'bg-amber-500/10';
   }
+
+  // Status text. Mirrors the icon — kept side-by-side here so the popover and
+  // the tooltip stay consistent.
+  let statusText: string;
+  if (!isOnline) statusText = 'Offline';
+  else if (syncing) statusText = 'Syncing…';
+  else if (hasError) statusText = 'Sync error';
+  else if (!isSynced) statusText = `${pendingCount} pending`;
+  else statusText = 'All synced';
+
+  const handleChangeFolder = async (): Promise<void> => {
+    if (!drive) {
+      setPickError('Drive client not configured');
+      return;
+    }
+    setPickBusy(true);
+    setPickError(null);
+    try {
+      const picked = await drive.pickFolder();
+      await kv.set('travel_folder_file_id', picked.id);
+      await kv.set('vault_root_file_id', picked.id);
+      await kv.set('travel_folder_name', picked.name);
+      // Full reload so the sync worker, inbound puller, and any live queries
+      // re-bind to the new folder cleanly — same behaviour the old AccountMenu
+      // version had.
+      window.location.reload();
+    } catch (err) {
+      setPickError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPickBusy(false);
+    }
+  };
+
+  const handleSyncNow = async (): Promise<void> => {
+    if (!tripsAdmin) return;
+    setErrorMsg(null);
+    setSyncing(true);
+    try {
+      // Outbound first so any local edits land before we pull and risk a
+      // momentarily-inconsistent view. Inbound is best-effort and silent on
+      // failure; the outbound report already surfaces its own errors.
+      await tripsAdmin.syncNow();
+      if (pullDriveInbound) await pullDriveInbound();
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div className="relative" ref={menuRef}>
-      <button 
-        onClick={() => hasError && setIsOpen(!isOpen)}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
         className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-full ${bgClass} transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1`}
-        title={isSynced ? 'Synced' : syncing ? 'Syncing...' : hasError ? 'Sync Error' : 'Pending Sync'}
+        title={statusText}
+        aria-label={`Drive sync — ${statusText}`}
       >
         <Icon className={`w-4 h-4 ${iconClass}`} />
       </button>
 
-      {isOpen && hasError && (
-        <div className="absolute right-0 mt-2 w-72 origin-top-right rounded-xl bg-surface border border-outline-variant shadow-lg z-50 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-5 h-5 text-red-500" />
-            <span className="font-semibold text-sm text-on-surface">Sync Error</span>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 origin-top-right rounded-xl bg-surface border border-outline-variant shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-outline-variant bg-surface-variant/30 rounded-t-xl">
+            <HardDrive className="w-4 h-4 text-on-surface-variant" />
+            <span className="text-sm font-semibold text-on-surface">Drive Sync</span>
           </div>
-          {!isOnline ? (
-            <p className="text-xs text-on-surface-variant">You are offline. Sync will resume when connection is restored.</p>
-          ) : (
-            <div className="text-xs text-on-surface-variant flex flex-col gap-2">
-              <p>{errorMsg}</p>
-              {firstPending?.last_error && (
-                <p className="text-red-500 break-words font-mono text-[10px] bg-red-500/10 p-2 rounded">
-                  {firstPending.last_error}
-                </p>
-              )}
-              <button 
-                onClick={() => {
-                  setErrorMsg(null);
-                  setIsOpen(false);
-                }}
-                className="mt-2 text-primary font-medium text-xs text-center border border-primary/20 rounded py-1.5 hover:bg-primary/10 transition-colors"
+
+          <div className="px-4 py-3 border-b border-outline-variant flex flex-col gap-2 text-xs">
+            <div className="flex justify-between gap-2">
+              <span className="text-on-surface-variant">Folder</span>
+              <span
+                className="text-on-surface font-medium text-right truncate max-w-[180px]"
+                title={travelFolderName ?? undefined}
+                data-testid="sync-folder-name"
               >
-                Retry Now
-              </button>
+                {travelFolderName ?? (travelFolderId ? 'Configured' : 'Not configured')}
+              </span>
             </div>
-          )}
+            <div className="flex justify-between gap-2">
+              <span className="text-on-surface-variant">Status</span>
+              <span
+                className={`font-medium text-right ${
+                  hasError ? 'text-red-500' : syncing ? 'text-primary' : isSynced ? 'text-green-600' : 'text-amber-600'
+                }`}
+                data-testid="sync-status-text"
+              >
+                {statusText}
+              </span>
+            </div>
+            {hasError && (
+              <div className="mt-1 flex flex-col gap-1">
+                {errorMsg && (
+                  <p className="text-on-surface-variant leading-snug">{errorMsg}</p>
+                )}
+                {firstPending?.last_error && (
+                  <p className="text-red-500 break-words font-mono text-[10px] bg-red-500/10 p-2 rounded">
+                    {firstPending.last_error}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="px-4 py-3 flex flex-col gap-2">
+            <button
+              onClick={() => void handleChangeFolder()}
+              disabled={pickBusy}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-variant transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 disabled:opacity-60"
+              data-testid="sync-change-folder"
+            >
+              <FolderOpen className="h-4 w-4 shrink-0" />
+              {pickBusy ? 'Opening picker…' : travelFolderId ? 'Change folder' : 'Set Drive folder'}
+            </button>
+            <button
+              onClick={() => void handleSyncNow()}
+              disabled={syncing || !tripsAdmin || !travelFolderId}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-on-primary hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 disabled:opacity-60"
+              data-testid="sync-now"
+            >
+              <RefreshCw className={`h-4 w-4 shrink-0 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing…' : 'Sync now'}
+            </button>
+            {pickError && (
+              <p className="text-xs text-red-500" role="alert">
+                {pickError}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

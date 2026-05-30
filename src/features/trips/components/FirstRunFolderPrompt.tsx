@@ -35,6 +35,9 @@ export function FirstRunFolderPrompt({ onPicked }: FirstRunFolderPromptProps): R
       // The vault root is the path's first segment; we persist the picker's
       // own folder id as a stand-in until S6's path resolver lands.
       await kv.set('vault_root_file_id', picked.id);
+      // Captured for display in SyncStatus. Offline-safe (no metadata round-trip);
+      // a later in-Drive rename won't reflect until the user re-picks. Acceptable.
+      await kv.set('travel_folder_name', picked.name);
       onPicked({ id: picked.id, name: picked.name, path: picked.path });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

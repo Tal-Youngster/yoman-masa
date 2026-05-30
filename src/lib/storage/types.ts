@@ -84,6 +84,9 @@ export type KVKey =
   | 'active_trip_id'
   | 'vault_root_file_id'
   | 'travel_folder_file_id'
+  /** Display name of the picked Travel folder. Captured from the Picker at
+   *  pick time so the UI can show "Folder: <name>" even when offline. */
+  | 'travel_folder_name'
   | 'drive_changes_page_token'
   | 'rates_snapshot';
 
@@ -102,6 +105,7 @@ export interface KVValueMap {
   active_trip_id: TripId;
   vault_root_file_id: string;
   travel_folder_file_id: string;
+  travel_folder_name: string;
   drive_changes_page_token: string;
   rates_snapshot: StoredRatesSnapshot;
 }
