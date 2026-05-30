@@ -51,4 +51,12 @@ export const tripInboundReconciler: InboundReconciler<Trip> = {
   async deleteEntity(id, db) {
     await deleteTripRow(id as TripId, db);
   },
+
+  async listEntityIds(db) {
+    // Dexie's primaryKeys() returns TripId[] (branded string). The interface
+    // contract is `readonly string[]`; TripId widens cleanly. The filter is
+    // belt-and-braces for a future migration that ever swaps key shape.
+    const keys = await db.trips.toCollection().primaryKeys();
+    return keys.filter((k) => typeof k === 'string');
+  },
 };

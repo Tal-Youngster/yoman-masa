@@ -57,6 +57,10 @@ function makeReconciler(): InboundReconciler<TestEntity> {
     deleteEntity: async (id, db) => {
       await db.trips.delete(id as never);
     },
+    listEntityIds: async (db) => {
+      const keys = await db.trips.toCollection().primaryKeys();
+      return keys.filter((k) => typeof k === 'string');
+    },
   };
 }
 
@@ -190,6 +194,57 @@ describe('pullAll — first run delegates to backfill', () => {
     const remaining = (await db.trips.toArray()).map((r) => (r as unknown as { id: string }).id);
     expect(remaining.sort()).toEqual(['trp_arg']);
     expect(await db.file_meta.get('fil-orphan')).toBeUndefined();
+  });
+
+  it('reconcileAll: drops a local-only entity that never made it to Drive (no file_meta)', async () => {
+    const drive = new FakeDrive();
+    // A trip the user created locally; outbound never succeeded (e.g. it was
+    // dead-lettered after the prefix bug) so there is NO file_meta row. The
+    // pre-PR `reconcileMissing` left these untouched forever — the aggressive
+    // sweep should drop them.
+    await db.trips.put({ id: 'trp_phantom', name: 'Phantom', type: 'trip' } as never);
+
+    // A real Drive trip exists so the walk has something to populate the
+    // alive set with (rules out a "walk failed → wipe everything" false
+    // positive).
+    seedTripFile(drive, 'argentina', { id: 'trp_arg', name: 'Argentina' });
+
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeReconciler());
+
+    const report = await pullAll(makeDeps(drive, db, registry));
+
+    expect(report.removed).toBe(1);
+    const remaining = (await db.trips.toArray()).map((r) => (r as unknown as { id: string }).id);
+    expect(remaining.sort()).toEqual(['trp_arg']);
+  });
+
+  it('reconcileAll: keeps a local-only entity that has a pending write_queue row', async () => {
+    const drive = new FakeDrive();
+    // Local create, no file_meta yet (outbound hasn't run), but the queue
+    // shows the write is in flight — preserve it.
+    await db.trips.put({ id: 'trp_inflight', name: 'In flight', type: 'trip' } as never);
+    await enqueueWrite(
+      {
+        id: '01H_local_create',
+        entity_type: 'trip',
+        entity_id: 'trp_inflight',
+        op: 'create',
+        payload: {},
+        base_revision: null,
+        file_id: null, // create — no Drive id yet
+        resolved_path: 'Travel/Trips/inflight/Trip.md',
+      },
+      db,
+    );
+
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeReconciler());
+
+    const report = await pullAll(makeDeps(drive, db, registry));
+
+    expect(report.removed).toBe(0);
+    expect(await db.trips.get('trp_inflight' as never)).toBeDefined();
   });
 
   it('reconcileMissing: keeps Dexie entities with a pending local write', async () => {

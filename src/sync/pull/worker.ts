@@ -139,12 +139,18 @@ interface IngestInput {
 /**
  * Parse a file and upsert its entities + file_meta. Shared by `pullAll` and
  * `backfill` so they apply identical conflict suppression / file_meta logic.
+ *
+ * `onAlive` is optional: backfill passes a callback so it can record which
+ * entity ids Drive surfaced this pass, then sweep anything else. The
+ * change-feed path doesn't need the callback — it only sees deltas, not the
+ * full set.
  */
 export async function ingestFile(
   deps: PullDeps,
   reconciler: InboundReconciler,
   input: IngestInput,
   report: PullReport,
+  onAlive?: (entityType: string, entityId: string) => void,
 ): Promise<void> {
   let entities: readonly unknown[];
   try {
@@ -161,6 +167,10 @@ export async function ingestFile(
   let appliedAny = false;
   for (const entity of entities) {
     const id = reconciler.entityId(entity);
+    // Mark alive whether or not we end up upserting — Drive showed us this
+    // entity, so the backfill sweep should not delete it even if we skipped
+    // the upsert because of a pending local write.
+    onAlive?.(reconciler.entityType, id);
     if (await hasPendingWrite(deps.db, reconciler.entityType, id)) {
       report.skipped += 1;
       continue;
