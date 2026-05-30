@@ -1,14 +1,13 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Button, Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import { useActiveTrip } from '@/ui/layout/useActiveTrip';
 import type { Place } from '@/domain/place';
-import maplibregl from 'maplibre-gl';
 
 import { PlaceForm } from './Form';
 import { PlacesList } from './List';
 import { PlaceDetail } from './Detail';
-import { MapLibreMap } from '@/lib/maps/MapLibreMap';
+import { PlacesMap } from './PlacesMap';
 import { placeFilePath } from '../paths';
 import { deletePlace } from '../queries';
 import { ulid } from 'ulid';
@@ -26,16 +25,14 @@ export function PlacesRoute(): React.JSX.Element {
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [loadedPlaces, setLoadedPlaces] = useState<Place[]>([]);
-  const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
 
-  // When places change, update map markers
   const handleDataLoaded = useCallback((places: Place[]) => {
     setLoadedPlaces(places);
   }, []);
 
   const openCreate = useCallback(() => {
     setSelectedPlace(null);
-    setDialogMode('form'); 
+    setDialogMode('form');
   }, []);
 
   const openEdit = useCallback((place: Place) => {
@@ -44,14 +41,11 @@ export function PlacesRoute(): React.JSX.Element {
     setDialogMode('form');
   }, []);
 
+  // Selecting a place pans the map via PlacesMap's controller (driven by `selectedPlace`).
   const openView = useCallback((place: Place) => {
     setSelectedPlace(place);
     setDialogMode('view');
-    // Pan map to place
-    if (mapInstance && place.lat !== undefined && place.lng !== undefined) {
-      mapInstance.flyTo({ center: [place.lng, place.lat], zoom: 14 });
-    }
-  }, [mapInstance]);
+  }, []);
 
   const handleDelete = useCallback(async (place: Place) => {
     if (!activeTrip) return;
@@ -88,65 +82,13 @@ export function PlacesRoute(): React.JSX.Element {
   const handleFormSuccess = useCallback(() => {
     setDialogMode('none');
     setSelectedPlace(null);
-
     setRefreshKey(k => k + 1);
-    if (mapInstance) {
-      // Don't fly immediately as we might not have lat/lng yet (they are updated async sometimes). 
-      // But if we have them, we could. The map will recenter anyway when loadedPlaces changes.
-    }
-  }, [mapInstance]);
-
-  const handleMapLoad = useCallback((map: maplibregl.Map) => {
-    setMapInstance(map);
   }, []);
 
   const handleMapClick = useCallback(() => {
-    // Drop a pin feature requires reverse-geocode to a Place ID in the new architecture.
     setSelectedPlace(null);
     setDialogMode('form');
   }, []);
-
-
-
-  // Compute bounding box or center from places
-  const placesWithCoords = useMemo(() => loadedPlaces.filter(p => p.lat !== undefined && p.lng !== undefined), [loadedPlaces]);
-
-  const initialCenter = useMemo<[number, number]>(() => {
-    if (placesWithCoords.length > 0) {
-      return [placesWithCoords[0].lng!, placesWithCoords[0].lat!];
-    }
-    return [0, 0]; // Default center
-  }, [placesWithCoords]);
-
-  // We need to manage markers dynamically using an effect
-  const markersRef = useRef<maplibregl.Marker[]>([]);
-  useEffect(() => {
-    if (!mapInstance) return;
-    
-    // Clear old markers
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
-
-    // Add new markers
-    loadedPlaces.forEach(place => {
-      if (place.lat !== undefined && place.lng !== undefined) {
-        const el = document.createElement('div');
-        el.className = 'w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center cursor-pointer transition-transform hover:scale-110 ' + (place.visited ? 'bg-primary/80 text-white' : 'bg-red-500 text-white');
-        el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>';
-        
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          openView(place);
-        });
-
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([place.lng, place.lat])
-          .addTo(mapInstance);
-          
-        markersRef.current.push(marker);
-      }
-    });
-  }, [mapInstance, loadedPlaces, openView]);
 
   if (loading) {
     return <p className="text-sm text-on-surface-variant">Loading...</p>;
@@ -176,16 +118,12 @@ export function PlacesRoute(): React.JSX.Element {
       </div>
 
       <div className="h-64 sm:h-96 w-full rounded-xl overflow-hidden border border-outline-variant shadow-sm relative">
-        <MapLibreMap 
-          initialCenter={initialCenter}
-          initialZoom={placesWithCoords.length > 0 ? 10 : 2}
-          onMapLoad={handleMapLoad}
-          onClick={handleMapClick}
-        >
-          {/* We render markers using basic HTML elements over the map, MapLibre manages standard markers via its own API usually,
-              but for React it's easier to sync them. However, since MapLibre Map is unmanaged, we could just manually add maplibregl.Marker instances.
-              For simplicity, we'll map them visually if possible, or leave it for later enhancement. */}
-        </MapLibreMap>
+        <PlacesMap
+          places={loadedPlaces}
+          selected={selectedPlace}
+          onMarkerClick={openView}
+          onMapClick={handleMapClick}
+        />
       </div>
 
       <PlacesList 
