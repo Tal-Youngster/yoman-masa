@@ -13,6 +13,7 @@ import {
   type AuthPersistence,
 } from './sync/drive';
 import { createDexieWriteQueue } from './sync/queue';
+import { inboundReconcilers, pullAll, type PullReport } from './sync/pull';
 import { db } from './lib/storage';
 import { registerTripReconcilers } from './features/trips/register';
 import { registerAccommodationReconcilers } from './features/accommodations/register';
@@ -169,6 +170,29 @@ const tasksAdmin = createTasksAdmin({
   travelFolderPath: 'Travel',
 });
 
+/**
+ * Inbound Drive → Dexie pull (ADR-0014). Resolves the configured Travel
+ * folder from KV on each call so a re-pick during the session is picked up
+ * naturally; returns null if no folder is configured or the pull throws.
+ * The hard error path is intentionally silent — SyncStatus already surfaces
+ * outbound failures, and an inbound failure during a focus event shouldn't
+ * pop a toast over the user's tab.
+ */
+async function pullDriveInbound(): Promise<PullReport | null> {
+  try {
+    const folder = await kv.get('travel_folder_file_id');
+    if (!folder) return null;
+    return await pullAll({
+      drive,
+      db,
+      travelFolderId: asFileId(folder),
+      registry: inboundReconcilers,
+    });
+  } catch {
+    return null;
+  }
+}
+
 const services = {
   kv,
   trips,
@@ -177,6 +201,7 @@ const services = {
   tasksAdmin,
   drive,
   writeQueue,
+  pullDriveInbound,
   ...(geminiKey ? { ai: new GeminiClient(geminiKey) } : {}),
 };
 
