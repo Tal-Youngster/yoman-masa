@@ -4,6 +4,7 @@ import { AppRoot } from './app/AppRoot';
 import { createDexieKVStore } from './app/dexie-kv-store';
 import { createDexieTripsStore } from './app/trips-store';
 import { createTripsAdmin } from './app/trips-admin';
+import { resolveParent as resolveParentHelper } from './app/resolve-parent';
 import {
   DriveAuth,
   RealDriveClient,
@@ -92,72 +93,59 @@ function createLocalStoragePersistence(): AuthPersistence | undefined {
   };
 }
 
+// Hoisted above the drive wiring so the same constant feeds the guard,
+// resolvePath placeholder, and the resolveParent walk below.
+const TRAVEL_PREFIX = 'Travel';
+
 let drive: DriveClient;
 if (clientId && developerKey) {
   const persistence = createLocalStoragePersistence();
   const auth = new DriveAuth({ clientId, ...(persistence ? { persistence } : {}) });
   drive = new RealDriveClient({
     auth,
-    allowedPrefix: 'Travel',
-    resolvePath: () => Promise.resolve('Travel'), // Placeholder until S6 path resolver lands
+    allowedPrefix: TRAVEL_PREFIX,
+    resolvePath: () => Promise.resolve(TRAVEL_PREFIX), // Placeholder until S6 path resolver lands
     openPicker: async () =>
       openFolderPicker({
         accessToken: await auth.getAccessToken(),
         developerKey,
-        resolvePath: () => Promise.resolve('Travel'),
+        resolvePath: () => Promise.resolve(TRAVEL_PREFIX),
       }),
   });
 } else {
-  drive = new FakeDrive({ allowedPrefix: 'Travel' });
+  drive = new FakeDrive({ allowedPrefix: TRAVEL_PREFIX });
 }
 
 const kv = createDexieKVStore(db);
 const trips = createDexieTripsStore(db);
 const writeQueue = createDexieWriteQueue(db);
 
+// Per-session memo for the mkdir-p walk inside resolveParent. Cleared on
+// reload, which is fine — re-listing is idempotent.
 const folderCache = new Map<string, string>();
 
 const tripsAdmin = createTripsAdmin({
   db,
   writeQueue,
   drive,
-  travelFolderPath: 'Travel', // Defaults to 'Travel' for path prefixing
+  travelFolderPath: TRAVEL_PREFIX,
   travelFolderId: asFileId(''), // Placeholder, overriden by resolveParent
   resolveParent: async (item) => {
     const travelFolder = await kv.get('travel_folder_file_id');
     if (!travelFolder) return null;
-    
-    const parts = item.resolvedPath.split('/').filter(Boolean);
-    if (parts.length <= 1) return asFileId(travelFolder);
-    
-    const folderNames = parts.slice(0, -1);
-    let currentParent = travelFolder;
-    let currentPath = '';
-    
-    for (const name of folderNames) {
-      currentPath = currentPath ? `${currentPath}/${name}` : name;
-      if (folderCache.has(currentPath)) {
-        currentParent = folderCache.get(currentPath)!;
-        continue;
-      }
-      
-      const files = await drive.listFolder(asFileId(currentParent));
-      let found = files.find(f => f.name === name && f.isFolder);
-      if (!found) {
-        found = await drive.createFolder(asFileId(currentParent), name);
-      }
-      folderCache.set(currentPath, found.id);
-      currentParent = found.id;
-    }
-    
-    return asFileId(currentParent);
+    return resolveParentHelper(item, {
+      drive,
+      travelFolderId: travelFolder,
+      allowedPrefix: TRAVEL_PREFIX,
+      folderCache,
+    });
   },
 });
 
 const expensesAdmin = createExpensesAdmin({
   db,
   writeQueue,
-  travelFolderPath: 'Travel',
+  travelFolderPath: TRAVEL_PREFIX,
   today: () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -167,7 +155,7 @@ const expensesAdmin = createExpensesAdmin({
 const tasksAdmin = createTasksAdmin({
   db,
   writeQueue,
-  travelFolderPath: 'Travel',
+  travelFolderPath: TRAVEL_PREFIX,
 });
 
 /**
