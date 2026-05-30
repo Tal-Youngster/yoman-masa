@@ -5,6 +5,7 @@ import { useActiveTrip } from '@/ui/layout/useActiveTrip';
 import { todayIso } from '@/domain/dates';
 import type { Task } from '@/domain/task';
 import type { TaskScope } from '../tasks-admin';
+import type { QuickAddParse } from '../quick-parse';
 import { TaskForm } from './TaskForm';
 import { TasksList } from './TasksList';
 
@@ -87,6 +88,18 @@ export function TasksRoute(): React.JSX.Element {
     reload();
   }, [reload]);
 
+  const handleQuickAdd = useCallback(async (parsed: QuickAddParse) => {
+    if (!tasksAdmin || parsed.title === '') return;
+    await tasksAdmin.addTask(scope, {
+      title: parsed.title,
+      status: 'open',
+      tags: parsed.tags,
+      ...(parsed.priority ? { priority: parsed.priority } : {}),
+      ...(parsed.due_date ? { due_date: parsed.due_date } : {}),
+    });
+    reload();
+  }, [tasksAdmin, scope, reload]);
+
   if (loading) {
     return <p className="text-sm text-on-surface-variant">Loading…</p>;
   }
@@ -116,12 +129,12 @@ export function TasksRoute(): React.JSX.Element {
       </div>
 
       {activeTrip && (
-        <div className="flex gap-1 rounded-lg border border-outline-variant p-1 text-sm">
+        <div className="flex gap-6 border-b border-outline-variant text-sm mb-2">
           <button
             type="button"
             onClick={() => setScopeKind('trip')}
-            className={`flex-1 rounded-md px-3 py-1.5 ${
-              effectiveKind === 'trip' ? 'bg-primary text-on-primary' : 'text-on-surface-variant'
+            className={`pb-2 px-1 border-b-2 transition-colors ${
+              effectiveKind === 'trip' ? 'border-primary text-primary font-medium' : 'border-transparent text-on-surface-variant hover:text-on-surface'
             }`}
           >
             {activeTrip.name}
@@ -129,8 +142,8 @@ export function TasksRoute(): React.JSX.Element {
           <button
             type="button"
             onClick={() => setScopeKind('general')}
-            className={`flex-1 rounded-md px-3 py-1.5 ${
-              effectiveKind === 'general' ? 'bg-primary text-on-primary' : 'text-on-surface-variant'
+            className={`pb-2 px-1 border-b-2 transition-colors ${
+              effectiveKind === 'general' ? 'border-primary text-primary font-medium' : 'border-transparent text-on-surface-variant hover:text-on-surface'
             }`}
           >
             General
@@ -144,6 +157,7 @@ export function TasksRoute(): React.JSX.Element {
         onToggle={(t) => void handleToggle(t)}
         onEdit={openEdit}
         onDelete={(t) => void handleDelete(t)}
+        onQuickAdd={handleQuickAdd}
       />
 
       <Sheet
