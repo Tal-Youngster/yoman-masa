@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Button, Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import { useActiveTrip } from '@/ui/layout/useActiveTrip';
@@ -9,7 +10,7 @@ import { PlacesList } from './List';
 import { PlaceDetail } from './Detail';
 import { PlacesMap } from './PlacesMap';
 import { placeFilePath } from '../paths';
-import { deletePlace } from '../queries';
+import { deletePlace, placesByTrip } from '../queries';
 import { ulid } from 'ulid';
 
 
@@ -22,13 +23,12 @@ export function PlacesRoute(): React.JSX.Element {
   const [dialogMode, setDialogMode] = useState<DialogMode>('none');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
-
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [loadedPlaces, setLoadedPlaces] = useState<Place[]>([]);
-
-  const handleDataLoaded = useCallback((places: Place[]) => {
-    setLoadedPlaces(places);
-  }, []);
+  // Shared with PlacesMap and PlaceForm. Dexie-subscribed so any write — local
+  // or inbound from Drive — flows through without manual invalidation.
+  const places = useLiveQuery(
+    () => (activeTrip ? placesByTrip(activeTrip.id) : Promise.resolve([])),
+    [activeTrip?.id],
+  ) ?? [];
 
   const openCreate = useCallback(() => {
     setSelectedPlace(null);
@@ -72,7 +72,7 @@ export function PlacesRoute(): React.JSX.Element {
       
       setDialogMode('none');
       setSelectedPlace(null);
-      setRefreshKey(k => k + 1);
+      // useLiveQuery re-renders on the Dexie delete; no manual bump needed.
     } catch (err) {
       console.error('Failed to delete place', err);
       alert('Failed to delete place');
@@ -82,7 +82,6 @@ export function PlacesRoute(): React.JSX.Element {
   const handleFormSuccess = useCallback(() => {
     setDialogMode('none');
     setSelectedPlace(null);
-    setRefreshKey(k => k + 1);
   }, []);
 
   const handleMapClick = useCallback(() => {
@@ -119,20 +118,18 @@ export function PlacesRoute(): React.JSX.Element {
 
       <div className="h-64 sm:h-96 w-full rounded-xl overflow-hidden border border-outline-variant shadow-sm relative">
         <PlacesMap
-          places={loadedPlaces}
+          places={places}
           selected={selectedPlace}
           onMarkerClick={openView}
           onMapClick={handleMapClick}
         />
       </div>
 
-      <PlacesList 
-        tripId={activeTrip.id} 
+      <PlacesList
+        tripId={activeTrip.id}
         onView={openView}
-        onEdit={openEdit} 
+        onEdit={openEdit}
         onDelete={(p) => { void handleDelete(p); }}
-        refreshKey={refreshKey} 
-        onDataLoaded={handleDataLoaded}
       />
 
       <Sheet
@@ -178,7 +175,7 @@ export function PlacesRoute(): React.JSX.Element {
         {dialogMode === 'form' && (
           <PlaceForm
             trip={activeTrip}
-            existingPlaces={loadedPlaces}
+            existingPlaces={places}
             {...(selectedPlace ? { initial: selectedPlace } : {})}
 
             onSuccess={handleFormSuccess}
