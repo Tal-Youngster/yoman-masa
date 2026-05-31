@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Button, Card, Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import { useActiveTrip } from '@/ui/layout/useActiveTrip';
@@ -21,8 +22,6 @@ export function TasksRoute(): React.JSX.Element {
   const [scopeKind, setScopeKind] = useState<ScopeKind>('trip');
   const [dialog, setDialog] = useState<DialogMode>('none');
   const [editing, setEditing] = useState<Task | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const today = todayIso();
 
@@ -36,22 +35,12 @@ export function TasksRoute(): React.JSX.Element {
     [effectiveKind, activeTrip],
   );
 
-  useEffect(() => {
-    if (!tasksAdmin) {
-      setTasks([]);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const list = await tasksAdmin.listByScope(scope);
-      if (!cancelled) setTasks(list);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [tasksAdmin, scope, refreshKey]);
-
-  const reload = useCallback(() => setRefreshKey((k) => k + 1), []);
+  // Subscribes to the `tasks` table — covers local mutations and inbound pulls
+  // without manual refresh-key bookkeeping.
+  const tasks = useLiveQuery<Task[]>(
+    () => (tasksAdmin ? tasksAdmin.listByScope(scope) : Promise.resolve([])),
+    [tasksAdmin, scope.tripId],
+  ) ?? [];
 
   const openCreate = useCallback(() => {
     setEditing(null);
@@ -63,13 +52,14 @@ export function TasksRoute(): React.JSX.Element {
     setDialog('edit');
   }, []);
 
+  // useLiveQuery re-renders on the Dexie write after each of these mutations;
+  // no manual refresh-key bump needed.
   const handleToggle = useCallback(
     async (t: Task) => {
       if (!tasksAdmin) return;
       await tasksAdmin.setStatus(scope, t, t.status === 'done' ? 'open' : 'done');
-      reload();
     },
-    [tasksAdmin, scope, reload],
+    [tasksAdmin, scope],
   );
 
   const handleDelete = useCallback(
@@ -77,16 +67,14 @@ export function TasksRoute(): React.JSX.Element {
       if (!tasksAdmin) return;
       if (!confirm(`Delete task "${t.title}"?`)) return;
       await tasksAdmin.removeTask(scope, t);
-      reload();
     },
-    [tasksAdmin, scope, reload],
+    [tasksAdmin, scope],
   );
 
   const handleSuccess = useCallback(() => {
     setDialog('none');
     setEditing(null);
-    reload();
-  }, [reload]);
+  }, []);
 
   const handleQuickAdd = useCallback(async (parsed: QuickAddParse) => {
     if (!tasksAdmin || parsed.title === '') return;
@@ -97,8 +85,7 @@ export function TasksRoute(): React.JSX.Element {
       ...(parsed.priority ? { priority: parsed.priority } : {}),
       ...(parsed.due_date ? { due_date: parsed.due_date } : {}),
     });
-    reload();
-  }, [tasksAdmin, scope, reload]);
+  }, [tasksAdmin, scope]);
 
   if (loading) {
     return <p className="text-sm text-on-surface-variant">Loading…</p>;
