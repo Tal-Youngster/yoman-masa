@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Pencil, Trash2 } from 'lucide-react';
 
 import { Button } from '@/ui/components';
@@ -28,36 +29,20 @@ export interface TripsListProps {
   onEdit: (trip: Trip) => void;
   /** Called when the user confirms deletion. */
   onDelete: (trip: Trip) => Promise<void> | void;
-  /** Refresh tick — bump to re-fetch (e.g. after a create). */
-  refreshKey?: number;
 }
 
-export function TripsList({
-  onEdit,
-  onDelete,
-  refreshKey = 0,
-}: TripsListProps): React.JSX.Element {
-  const [trips, setTrips] = useState<Trip[]>([]);
+export function TripsList({ onEdit, onDelete }: TripsListProps): React.JSX.Element {
+  // useLiveQuery re-runs whenever the `trips` table changes — covers both local
+  // mutations and the inbound Drive puller writing new rows. `undefined` while
+  // the first query is pending; `Trip[]` afterwards.
+  const trips = useLiveQuery(() => listTripsAll(), []);
+  const loading = trips === undefined;
   const [filter, setFilter] = useState<Filter>('all');
-  const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<Trip | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      setLoading(true);
-      const all = await listTripsAll();
-      if (cancelled) return;
-      setTrips(all);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey]);
-
   const filtered = useMemo(() => {
+    if (!trips) return [];
     if (filter === 'all') return trips;
     return trips.filter((t) => getDisplayStatus(t) === filter);
   }, [trips, filter]);

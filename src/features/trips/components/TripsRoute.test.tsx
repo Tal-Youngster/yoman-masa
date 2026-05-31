@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { screen, within, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -18,7 +18,17 @@ import { newTrip } from '@/domain/trip';
 import { upsertTrip, type TravelDB } from '@/lib/storage';
 import { deleteDatabase, makeTestDb } from '@/lib/storage/test-helpers';
 
+import * as tripsQueries from '../queries';
 import { TripsRoute } from './TripsRoute';
+
+// Capture the un-spied implementation at module load. Each test's spy delegates
+// to this — re-reading `tripsQueries.listTripsAll` inside renderRoute would
+// capture the previous test's spy and recurse.
+const ORIGINAL_LIST_TRIPS_ALL = tripsQueries.listTripsAll;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 beforeAll(() => {
   if (!HTMLDialogElement.prototype.showModal) {
@@ -139,13 +149,13 @@ async function renderRoute(opts: HarnessOptions = {}): Promise<{
         }
       : {}),
   };
-  // We override the trips-route queries by stubbing them through db default —
-  // the production `listTripsAll()` reads from the default singleton, but in
-  // tests we want the per-test db. Patch the queries module's listTripsAll
-  // for the duration of this render.
-  const queriesModule = await import('../queries');
-  vi.spyOn(queriesModule, 'listTripsAll').mockImplementation(() =>
-    Promise.resolve(opts.seedTrips ?? []),
+  // The production `listTripsAll()` reads from the default Dexie singleton;
+  // in tests we want the per-test db. Delegate the spy to the original impl
+  // (captured at module load) bound to the test db — this preserves
+  // useLiveQuery's table-change subscriptions so the UI re-renders on
+  // subsequent writes to `db` (e.g. an inbound pull).
+  vi.spyOn(tripsQueries, 'listTripsAll').mockImplementation(() =>
+    ORIGINAL_LIST_TRIPS_ALL(db),
   );
 
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -302,5 +312,32 @@ describe('TripsRoute — list + create flow', () => {
     await user.click(screen.getByTestId('trips-delete-cancel'));
 
     expect(admin.calls.deleteTrip).toEqual([]);
+  });
+
+  it('shows a trip written to Dexie post-mount without a manual refresh', async () => {
+    // Regression for the "I need to refresh after syncing" bug: any write to
+    // the `trips` table — local OR from the inbound Drive puller — must flow
+    // through to the list immediately. useLiveQuery subscribes for us.
+    const { db } = await renderRoute({
+      travelFolderId: 'fld_travel',
+      seedTrips: [seeded],
+    });
+
+    expect(await screen.findByTestId(`trips-row-${seeded.id}`)).toBeInTheDocument();
+
+    const inbound = newTrip({
+      slug: 'lisbon-2027',
+      name: 'Lisbon 2027',
+      start_date: isoDate('2027-04-01'),
+      end_date: isoDate('2027-04-10'),
+      home_currency: currency('EUR'),
+    });
+    await upsertTrip(inbound, db);
+
+    // No remount, no refreshKey bump — the list re-renders on Dexie's change.
+    expect(await screen.findByTestId(`trips-row-${inbound.id}`)).toBeInTheDocument();
+
+    db.close();
+    await deleteDatabase(db.name);
   });
 });

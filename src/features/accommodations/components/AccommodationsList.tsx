@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Card } from '@/ui/components';
 import type { Accommodation, AccommodationStatus } from '@/domain/accommodation';
 import type { TripId } from '@/domain/ids';
@@ -11,31 +12,17 @@ export interface AccommodationsListProps {
   tripId: TripId;
   onView: (acc: Accommodation) => void;
   onEdit: (acc: Accommodation) => void;
-  refreshKey?: number;
-  onDataLoaded?: (accs: Accommodation[]) => void;
 }
 
-export function AccommodationsList({ tripId, onView, onEdit, refreshKey = 0, onDataLoaded }: AccommodationsListProps): React.JSX.Element {
-  const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
+export function AccommodationsList({ tripId, onView, onEdit }: AccommodationsListProps): React.JSX.Element {
+  // useLiveQuery subscribes to the `accommodations` table — local writes and
+  // inbound Drive pulls re-render this component automatically.
+  const accommodations = useLiveQuery(() => listAccommodationsByTrip(tripId), [tripId]);
+  const loading = accommodations === undefined;
   const [filter, setFilter] = useState<Filter>('all');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      setLoading(true);
-      const all = await listAccommodationsByTrip(tripId);
-      if (cancelled) return;
-      setAccommodations(all);
-      onDataLoaded?.(all);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [tripId, refreshKey, onDataLoaded]);
 
   const filtered = useMemo(() => {
+    if (!accommodations) return [];
     if (filter === 'all') return accommodations;
     return accommodations.filter(a => a.status === filter);
   }, [accommodations, filter]);

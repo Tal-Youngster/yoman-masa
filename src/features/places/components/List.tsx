@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Card } from '@/ui/components';
 import { Pencil, Trash2 } from 'lucide-react';
 import type { Place } from '@/domain/place';
@@ -7,31 +8,25 @@ import { placesByTrip } from '../queries';
 
 export interface PlacesListProps {
   tripId: TripId;
-  refreshKey?: number;
   onView: (place: Place) => void;
   onEdit: (place: Place) => void;
   onDelete: (place: Place) => void;
-  onDataLoaded?: (places: Place[]) => void;
 }
 
-export function PlacesList({ tripId, refreshKey = 0, onView, onEdit, onDelete, onDataLoaded }: PlacesListProps): React.JSX.Element {
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-    void placesByTrip(tripId).then(data => {
-      if (!mounted) return;
-      // Sort: by name
-      const sorted = data.sort((a, b) => {
-        return (a.place_alias || a.place_id).localeCompare(b.place_alias || b.place_id);
-      });
-      setPlaces(sorted);
-      setLoading(false);
-      onDataLoaded?.(sorted);
-    });
-    return () => { mounted = false; };
-  }, [tripId, refreshKey, onDataLoaded]);
+export function PlacesList({ tripId, onView, onEdit, onDelete }: PlacesListProps): React.JSX.Element {
+  // useLiveQuery subscribes to the `places` table — local writes and inbound
+  // Drive pulls re-render this component automatically.
+  const raw = useLiveQuery(() => placesByTrip(tripId), [tripId]);
+  const loading = raw === undefined;
+  const places = useMemo(
+    () =>
+      raw
+        ? [...raw].sort((a, b) =>
+            (a.place_alias || a.place_id).localeCompare(b.place_alias || b.place_id),
+          )
+        : [],
+    [raw],
+  );
 
   if (loading) {
     return <div className="text-sm text-on-surface-variant">Loading places...</div>;

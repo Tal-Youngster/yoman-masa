@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Button, Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import { useActiveTrip } from '@/ui/layout/useActiveTrip';
@@ -13,7 +14,7 @@ import { AiExtractionDialog } from './AiExtractionDialog';
 import type { AiExtractedData } from './AiExtractionDialog';
 import { ulid } from 'ulid';
 import { accommodationFilePath } from '../paths';
-import { deleteAccommodation } from '../queries';
+import { deleteAccommodation, listAccommodationsByTrip } from '../queries';
 
 type DialogMode = 'none' | 'extraction' | 'form' | 'view';
 
@@ -26,12 +27,12 @@ export function AccommodationsRoute(): React.JSX.Element {
   const [aiSource, setAiSource] = useState<{ url?: string; file?: File } | undefined>(undefined);
   const [selectedAcc, setSelectedAcc] = useState<Accommodation | null>(null);
 
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [loadedAccommodations, setLoadedAccommodations] = useState<Accommodation[]>([]);
-
-  const handleDataLoaded = useCallback((accs: Accommodation[]) => {
-    setLoadedAccommodations(accs);
-  }, []);
+  // Shared with MissingNightsView and TripCalendar. Dexie-subscribed so any
+  // write (local or inbound pull) flows through without manual invalidation.
+  const accommodations = useLiveQuery(
+    () => (activeTrip ? listAccommodationsByTrip(activeTrip.id) : Promise.resolve([])),
+    [activeTrip?.id],
+  ) ?? [];
 
   function openCreate(): void {
     setSelectedAcc(null);
@@ -76,7 +77,7 @@ export function AccommodationsRoute(): React.JSX.Element {
       
       setDialogMode('none');
       setSelectedAcc(null);
-      setRefreshKey(k => k + 1);
+      // useLiveQuery re-renders on the Dexie delete; no manual bump needed.
     } catch (err) {
       console.error('Failed to delete accommodation', err);
       alert('Failed to delete accommodation');
@@ -88,7 +89,6 @@ export function AccommodationsRoute(): React.JSX.Element {
     setSelectedAcc(null);
     setAiData(undefined);
     setAiSource(undefined);
-    setRefreshKey(k => k + 1);
   }
 
   function handleExtracted(data: AiExtractedData, source?: { url?: string; file?: File }) {
@@ -130,21 +130,19 @@ export function AccommodationsRoute(): React.JSX.Element {
         </div>
       </div>
 
-      <MissingNightsView trip={activeTrip} accommodations={loadedAccommodations} />
+      <MissingNightsView trip={activeTrip} accommodations={accommodations} />
 
-      <TripCalendar 
-        trip={activeTrip} 
-        accommodations={loadedAccommodations} 
+      <TripCalendar
+        trip={activeTrip}
+        accommodations={accommodations}
         onAccommodationClick={openView}
         onMissingClick={() => openCreate()}
       />
 
-      <AccommodationsList 
-        tripId={activeTrip.id} 
+      <AccommodationsList
+        tripId={activeTrip.id}
         onView={openView}
-        onEdit={openEdit} 
-        refreshKey={refreshKey} 
-        onDataLoaded={handleDataLoaded}
+        onEdit={openEdit}
       />
 
       <Sheet

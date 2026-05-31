@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Button, Sheet, Card } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import { useActiveTrip } from '@/ui/layout/useActiveTrip';
@@ -21,31 +22,33 @@ export function ExpensesRoute(): React.JSX.Element {
 
   const [dialog, setDialog] = useState<DialogMode>('none');
   const [editing, setEditing] = useState<Expense | null>(null);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [snapshot, setSnapshot] = useState<RatesSnapshot | undefined>(undefined);
 
   const today = todayIso();
 
-  // Reload expenses when the active trip changes or after a mutation.
+  // Subscribes to the `expenses` table — local mutations and inbound pulls
+  // re-render automatically. Empty array while we still have no trip/admin.
+  const expenses = useLiveQuery<Expense[]>(
+    () =>
+      activeTrip && expensesAdmin
+        ? expensesAdmin.listByTrip(activeTrip.id)
+        : Promise.resolve([]),
+    [activeTrip?.id, expensesAdmin],
+  ) ?? [];
+
+  // FX snapshot is a one-shot read from the rates cache (not Dexie-backed), so
+  // a plain effect is fine. Refreshes when the trip changes in case a cache
+  // populate raced the first render.
   useEffect(() => {
-    if (!activeTrip || !expensesAdmin) {
-      setExpenses([]);
-      return;
-    }
     let cancelled = false;
     void (async () => {
-      const list = await expensesAdmin.listByTrip(activeTrip.id);
-      if (cancelled) return;
-      setExpenses(list);
       const snap = await readCachedRates();
-      if (cancelled) return;
-      setSnapshot(snap ?? undefined);
+      if (!cancelled) setSnapshot(snap ?? undefined);
     })();
     return () => {
       cancelled = true;
     };
-  }, [activeTrip, expensesAdmin, refreshKey]);
+  }, [activeTrip?.id]);
 
   const openCreate = useCallback(() => {
     setEditing(null);
@@ -57,12 +60,12 @@ export function ExpensesRoute(): React.JSX.Element {
     setDialog('edit');
   }, []);
 
+  // useLiveQuery re-renders on the Dexie write — no manual refresh-key bump.
   const handleDelete = useCallback(
     async (e: Expense) => {
       if (!activeTrip || !expensesAdmin) return;
       if (!confirm(`Delete expense "${e.description || e.id}"?`)) return;
       await expensesAdmin.removeExpense(activeTrip, e);
-      setRefreshKey((k) => k + 1);
     },
     [activeTrip, expensesAdmin],
   );
@@ -70,7 +73,6 @@ export function ExpensesRoute(): React.JSX.Element {
   const handleSuccess = useCallback(() => {
     setDialog('none');
     setEditing(null);
-    setRefreshKey((k) => k + 1);
   }, []);
 
   if (loading) {
