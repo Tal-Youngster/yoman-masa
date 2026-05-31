@@ -23,7 +23,6 @@ export function TripsRoute(): React.JSX.Element {
   const [travelFolderId, setTravelFolderId] = useValidateTravelFolder();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Trip | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   function openCreate(): void {
     setEditing(null);
@@ -38,15 +37,13 @@ export function TripsRoute(): React.JSX.Element {
   async function handleDelete(trip: Trip): Promise<void> {
     if (!tripsAdmin) return;
     await tripsAdmin.deleteTrip(trip.id);
-    setRefreshKey((k) => k + 1);
+    // TripsList re-renders automatically — it subscribes to the `trips` table
+    // via useLiveQuery.
   }
-
-
 
   function handleFormSuccess(): void {
     setSheetOpen(false);
     setEditing(null);
-    setRefreshKey((k) => k + 1);
     // Best-effort sync after a mutation. Worker is idempotent if a sync is
     // already in flight (we'd add a lock in a later slice).
     if (tripsAdmin) void tripsAdmin.syncNow();
@@ -102,7 +99,7 @@ export function TripsRoute(): React.JSX.Element {
 
 
 
-      <TripsList onEdit={openEdit} onDelete={handleDelete} refreshKey={refreshKey} />
+      <TripsList onEdit={openEdit} onDelete={handleDelete} />
 
       <Sheet
         open={sheetOpen}
