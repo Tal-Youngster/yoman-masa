@@ -39,15 +39,8 @@ export { AccommodationsRoute } from '@/features/accommodations/components';
 export { PlacesRoute } from '@/features/places/components';
 export { ExpensesRoute } from '@/features/expenses/components';
 export { TasksRoute } from '@/features/tasks/components';
+export { ShoppingRoute } from '@/features/shopping/components';
 export { PathMapRoute } from '@/features/path-map/components';
-
-export function ShoppingRoute(): React.JSX.Element {
-  return (
-    <Card title="Shopping" description="Per-trip and General shopping lists.">
-      <p className="text-slate-400">S11 — Shopping will populate this view.</p>
-    </Card>
-  );
-}
 
 export function ArticlesRoute(): React.JSX.Element {
   return (
