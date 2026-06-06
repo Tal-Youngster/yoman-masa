@@ -11,6 +11,7 @@ import {
   ArticlesRoute,
   DashboardRoute,
   ExpensesRoute,
+  PathMapRoute,
   PlacesRoute,
   ShoppingRoute,
   TasksRoute,
@@ -82,6 +83,11 @@ const articlesRoute = createRoute({
   path: '/articles',
   component: ArticlesRoute,
 });
+const pathMapRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/path-map',
+  component: PathMapRoute,
+});
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -94,6 +100,7 @@ const routeTree = rootRoute.addChildren([
     tasksRoute,
     shoppingRoute,
     articlesRoute,
+    pathMapRoute,
   ]),
 ]);
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
 import { GoogleMap } from '@/lib/maps/GoogleMap';
 import type { Place } from '@/domain/place';
+import { PLACE_PIN_VISITED, PLACE_PIN_WISHLIST } from '../colors';
 
 type PlacedPlace = Place & { lat: number; lng: number };
 
@@ -38,7 +39,7 @@ export function PlacesMap({ places, selected, onMarkerClick, onMapClick }: Place
           onClick={() => onMarkerClick(p)}
         >
           <Pin
-            background={p.visited ? '#1f8a4c' : '#e0413e'}
+            background={p.visited ? PLACE_PIN_VISITED : PLACE_PIN_WISHLIST}
             borderColor="#ffffff"
             glyphColor="#ffffff"
             scale={selected?.id === p.id ? 1.4 : 1}

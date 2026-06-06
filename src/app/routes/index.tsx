@@ -1,9 +1,23 @@
+import { Link } from '@tanstack/react-router';
 import { Card } from '@/ui/components';
 import { TripsRoute as TripsRouteImpl } from '@/features/trips/components';
 export { LoginRoute } from './login';
 
 import { MissingNightsDashboardCard, DaysUntilMissingNightCard } from '@/features/missing-nights/components';
 import { TasksDashboardCard } from '@/features/tasks/components';
+
+function PathMapDashboardCard(): React.JSX.Element {
+  return (
+    <Card title="Path map" description="Date-ordered trace of your trip.">
+      <Link
+        to="/path-map"
+        className="inline-block rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:opacity-90"
+      >
+        Open path map
+      </Link>
+    </Card>
+  );
+}
 
 export function DashboardRoute(): React.JSX.Element {
   return (
@@ -14,6 +28,7 @@ export function DashboardRoute(): React.JSX.Element {
       <MissingNightsDashboardCard />
       <DaysUntilMissingNightCard />
       <TasksDashboardCard />
+      <PathMapDashboardCard />
     </div>
   );
 }
@@ -24,6 +39,7 @@ export { AccommodationsRoute } from '@/features/accommodations/components';
 export { PlacesRoute } from '@/features/places/components';
 export { ExpensesRoute } from '@/features/expenses/components';
 export { TasksRoute } from '@/features/tasks/components';
+export { PathMapRoute } from '@/features/path-map/components';
 
 export function ShoppingRoute(): React.JSX.Element {
   return (
