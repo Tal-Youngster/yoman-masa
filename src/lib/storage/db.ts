@@ -86,6 +86,41 @@ export function defineSchema(db: Dexie): void {
         });
       await tx.table('kv').put({ key: '__schema_v3__', value: 'true' });
     });
+
+  // v4 — `file_meta.last_entity_ids: string[]`. Tracks the set of entity ids
+  // a file was last seen to contain so the inbound worker can compute
+  // per-row deletes for ledger files (Expenses, Tasks). See ADR-0014
+  // addendum (2026-06-06).
+  //
+  // The column isn't indexed — readers fetch the full row and iterate the
+  // array client-side. No `.stores()` change is needed (Dexie indexes are
+  // explicit; non-indexed fields are free), but we declare v4 so the
+  // upgrade hook runs.
+  //
+  // Upgrade does two things:
+  //   1. Backfill `last_entity_ids = [entity_id]` on every existing row.
+  //      Correct for single-entity files; safely approximate for ledger
+  //      file_metas (worst case: one stale-id no-op on next ingest).
+  //   2. Delete `drive_changes_page_token`. Pre-v4 the change-feed token
+  //      was captured at the end of a walk that silently skipped any file
+  //      the inbound registry didn't claim (because S14 only registered
+  //      the trip reconciler). Those files still exist in Drive but won't
+  //      appear in the change feed — they haven't been modified since the
+  //      token was captured. Forcing the next pull onto the backfill path
+  //      is the only way to surface them. Also re-derives the correct
+  //      `last_entity_ids` for ledger files from Drive content.
+  db.version(4).upgrade(async (tx) => {
+    await tx
+      .table('file_meta')
+      .toCollection()
+      .modify((row: { entity_id?: unknown; last_entity_ids?: unknown }) => {
+        if (row.last_entity_ids === undefined) {
+          row.last_entity_ids = typeof row.entity_id === 'string' ? [row.entity_id] : [];
+        }
+      });
+    await tx.table('kv').delete('drive_changes_page_token');
+    await tx.table('kv').put({ key: '__schema_v4__', value: 'true' });
+  });
 }
 
 /** Shared singleton for the running app. Tests construct their own per-test instance. */

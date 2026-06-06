@@ -174,6 +174,7 @@ describe('pullAll — first run delegates to backfill', () => {
         file_id: 'fil-orphan',
         entity_type: 'trip',
         entity_id: 'trp_tokyo',
+        last_entity_ids: ['trp_tokyo'],
         head_revision_id: 'fil-orphan:1',
         modified_time: '2026-01-01T00:00:00.000Z',
         path: 'Trips/tokyo/Trip.md',
@@ -256,6 +257,7 @@ describe('pullAll — first run delegates to backfill', () => {
         file_id: 'fil-pending',
         entity_type: 'trip',
         entity_id: 'trp_pending',
+        last_entity_ids: ['trp_pending'],
         head_revision_id: 'fil-pending:1',
         modified_time: '2026-01-01T00:00:00.000Z',
         path: 'Trips/pending/Trip.md',
@@ -377,6 +379,171 @@ describe('pullAll — incremental change-feed pass', () => {
     await pullAll(makeDeps(drive, db, registry));
     const tokenAfterSecond = await getKV('drive_changes_page_token', db);
     expect(tokenAfterSecond).toBe(tokenAfterFirst);
+  });
+});
+
+/** A multi-entity stub modelling a ledger file. One file → N entities, just
+ *  like Expenses/<yyyy-mm>.md or Tasks.md. Persisted into the `trips` table
+ *  for the same reasons as `makeReconciler` above — the table is just storage,
+ *  not a Trip-shape assertion. */
+function makeLedgerReconciler(): InboundReconciler<TestEntity> {
+  return {
+    entityType: 'trip',
+    matchesPath: (p) => /^Ledgers\/[a-z0-9-]+\.json$/.test(p),
+    parseFile: (content) => JSON.parse(content) as TestEntity[],
+    entityId: (e) => e.id,
+    upsertEntity: async (e, db) => {
+      await db.trips.put(asTripRow(e) as never);
+    },
+    deleteEntity: async (id, db) => {
+      await db.trips.delete(id as never);
+    },
+    listEntityIds: async (db) => {
+      const keys = await db.trips.toCollection().primaryKeys();
+      return keys.filter((k) => typeof k === 'string');
+    },
+  };
+}
+
+function seedLedgerFile(
+  drive: FakeDrive,
+  name: string,
+  entities: readonly TestEntity[],
+): ReturnType<typeof asFileId> {
+  const folderId = ensureFolder(drive, 'Ledgers', drive.travelFolderId, 'MyVault/Travel/Ledgers');
+  return drive.seedFile({
+    name: `${name}.json`,
+    parent: folderId,
+    path: `MyVault/Travel/Ledgers/${name}.json`,
+    content: JSON.stringify(entities),
+  });
+}
+
+describe('ingestFile — ledger semantics (v4)', () => {
+  it('records last_entity_ids covering every row in a multi-entity file', async () => {
+    const drive = new FakeDrive();
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeLedgerReconciler());
+
+    const fileId = seedLedgerFile(drive, 'jan', [
+      { id: 'trp_a', name: 'A' },
+      { id: 'trp_b', name: 'B' },
+      { id: 'trp_c', name: 'C' },
+    ]);
+
+    await pullAll(makeDeps(drive, db, registry));
+
+    const fm = await db.file_meta.get(fileId);
+    expect(fm).toBeDefined();
+    expect([...(fm!.last_entity_ids ?? [])].sort()).toEqual(['trp_a', 'trp_b', 'trp_c']);
+  });
+
+  it('deletes rows that disappear from a ledger between pulls', async () => {
+    const drive = new FakeDrive();
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeLedgerReconciler());
+
+    const fileId = seedLedgerFile(drive, 'jan', [
+      { id: 'trp_a', name: 'A' },
+      { id: 'trp_b', name: 'B' },
+      { id: 'trp_c', name: 'C' },
+    ]);
+    await pullAll(makeDeps(drive, db, registry));
+    expect((await db.trips.toArray()).length).toBe(3);
+
+    // External edit removes `b`.
+    drive.externalEdit(
+      fileId,
+      JSON.stringify([
+        { id: 'trp_a', name: 'A' },
+        { id: 'trp_c', name: 'C' },
+      ]),
+    );
+
+    const report = await pullAll(makeDeps(drive, db, registry));
+    expect(report.removed).toBeGreaterThanOrEqual(1);
+    expect(await db.trips.get('trp_b' as never)).toBeUndefined();
+    expect(await db.trips.get('trp_a' as never)).toBeDefined();
+    expect(await db.trips.get('trp_c' as never)).toBeDefined();
+
+    const fm = await db.file_meta.get(fileId);
+    expect([...(fm!.last_entity_ids ?? [])].sort()).toEqual(['trp_a', 'trp_c']);
+  });
+
+  it('preserves a row whose pending local write would otherwise be diffed out', async () => {
+    const drive = new FakeDrive();
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeLedgerReconciler());
+
+    const fileId = seedLedgerFile(drive, 'jan', [
+      { id: 'trp_a', name: 'A' },
+      { id: 'trp_b', name: 'B' },
+    ]);
+    await pullAll(makeDeps(drive, db, registry));
+
+    // External edit drops `b`, but a local write for `b` is in flight — keep it.
+    drive.externalEdit(fileId, JSON.stringify([{ id: 'trp_a', name: 'A' }]));
+    await enqueueWrite(
+      {
+        id: '01H_local_b',
+        entity_type: 'trip',
+        entity_id: 'trp_b',
+        op: 'update',
+        payload: {},
+        base_revision: null,
+        file_id: fileId,
+        resolved_path: 'MyVault/Travel/Ledgers/jan.json',
+      },
+      db,
+    );
+
+    await pullAll(makeDeps(drive, db, registry));
+    expect(await db.trips.get('trp_b' as never)).toBeDefined();
+  });
+
+  it('whole-file removal cascades to every row the ledger contained', async () => {
+    const drive = new FakeDrive();
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeLedgerReconciler());
+
+    const fileId = seedLedgerFile(drive, 'jan', [
+      { id: 'trp_a', name: 'A' },
+      { id: 'trp_b', name: 'B' },
+      { id: 'trp_c', name: 'C' },
+    ]);
+    await pullAll(makeDeps(drive, db, registry));
+    expect((await db.trips.toArray()).length).toBe(3);
+
+    drive.externalRemove(fileId);
+    const report = await pullAll(makeDeps(drive, db, registry));
+
+    expect(report.removed).toBe(3);
+    expect((await db.trips.toArray()).length).toBe(0);
+    expect(await db.file_meta.get(fileId)).toBeUndefined();
+  });
+
+  it('handleRemoval is backwards-compatible with pre-v4 file_meta missing last_entity_ids', async () => {
+    // Simulates a row that slipped through migration without the new field.
+    // Use `as never` to bypass the type system — the runtime branch under
+    // test is precisely the legacy-shape fallback.
+    const drive = new FakeDrive();
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeLedgerReconciler());
+
+    const fileId = seedLedgerFile(drive, 'feb', [{ id: 'trp_legacy', name: 'Legacy' }]);
+    await pullAll(makeDeps(drive, db, registry));
+    await db.file_meta
+      .where('file_id')
+      .equals(fileId)
+      .modify((row) => {
+        delete (row as unknown as Record<string, unknown>).last_entity_ids;
+      });
+    await db.trips.put({ id: 'trp_legacy', name: 'Legacy', type: 'trip' } as never);
+
+    drive.externalRemove(fileId);
+    const report = await pullAll(makeDeps(drive, db, registry));
+    expect(report.removed).toBe(1);
+    expect(await db.trips.get('trp_legacy' as never)).toBeUndefined();
   });
 });
 

@@ -16,6 +16,7 @@ export {
   expenseReconciler,
   type ExpensePayload,
 } from './reconciler';
+export { expenseInboundReconciler } from './inbound';
 export { registerExpenseReconcilers } from './register';
 export {
   listExpensesByTrip,

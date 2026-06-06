@@ -61,6 +61,50 @@ class V2Db extends Dexie {
   }
 }
 
+/**
+ * Stops at v3 to simulate a database opened on a build between S5 and S16 —
+ * before `file_meta.last_entity_ids` and the change-token purge. Mirrors the
+ * v1+v2+v3 stores from db.ts exactly.
+ */
+class V3Db extends Dexie {
+  constructor(name: string) {
+    super(name);
+    this.version(1).stores({
+      trips: 'id, slug, status, start_date, end_date',
+      accommodations: 'id, trip_id, status, checkin, checkout',
+      places: 'id, trip_id, visited',
+      expenses: 'id, trip_id, date, category, currency',
+      tasks: 'id, trip_id, status, due_date',
+      shopping_items: 'id, trip_id, bought',
+      articles: 'id, trip_id, place_id',
+      file_meta: 'file_id, entity_id, entity_type',
+      write_queue: 'id, entity_type, entity_id, created_at',
+      kv: 'key',
+    });
+    this.version(2)
+      .stores({
+        expenses: 'id, trip_id, date, category, currency, [trip_id+date]',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('kv').put({ key: '__schema_v2__', value: 'true' });
+      });
+    this.version(3)
+      .stores({
+        write_queue: 'id, entity_type, entity_id, created_at, file_id, resolved_path',
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table('write_queue')
+          .toCollection()
+          .modify((row: { file_id?: unknown; resolved_path?: unknown }) => {
+            if (row.file_id === undefined) row.file_id = null;
+            if (row.resolved_path === undefined) row.resolved_path = '';
+          });
+        await tx.table('kv').put({ key: '__schema_v3__', value: 'true' });
+      });
+  }
+}
+
 const dbsToCleanup: string[] = [];
 afterEach(async () => {
   for (const name of dbsToCleanup.splice(0)) {
@@ -99,7 +143,7 @@ describe('Schema migration v1 → v2', () => {
     // Phase 2 — reopen at v3 via the real TravelDB and verify upgrade ran.
     const v3 = new TravelDB(name);
     await v3.open();
-    expect(v3.verno).toBe(3);
+    expect(v3.verno).toBe(4);
 
     const tripBack = await v3.trips.get(trip.id);
     expect(tripBack).toEqual(trip);
@@ -126,7 +170,7 @@ describe('Schema migration v1 → v2', () => {
 
     const db = new TravelDB(name);
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
 
     const trip = newTrip({
       slug: 'fresh',
@@ -173,7 +217,7 @@ describe('Schema migration v2 → v3', () => {
     // Phase 2 — reopen via TravelDB; upgrade backfills new columns.
     const v3 = new TravelDB(name);
     await v3.open();
-    expect(v3.verno).toBe(3);
+    expect(v3.verno).toBe(4);
 
     const row = (await v3.write_queue.get('legacy-row-1')) as
       | (Record<string, unknown> & { file_id: unknown; resolved_path: unknown })
@@ -194,7 +238,7 @@ describe('Schema migration v2 → v3', () => {
 
     const db = new TravelDB(name);
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
 
     await db.write_queue.put({
       id: 'fresh-row-1',
@@ -213,6 +257,73 @@ describe('Schema migration v2 → v3', () => {
     // The new index `file_id` is queryable on a fresh DB.
     const byFileId = await db.write_queue.where('file_id').equals('drive-file-x').toArray();
     expect(byFileId.map((r) => r.id)).toEqual(['fresh-row-1']);
+
+    db.close();
+  });
+});
+
+describe('Schema migration v3 → v4', () => {
+  it('backfills last_entity_ids from entity_id and clears the change-feed token', async () => {
+    const name = `travel-migration-v4-${Math.random().toString(36).slice(2)}`;
+    dbsToCleanup.push(name);
+
+    // Phase 1 — open at v3 and seed a file_meta row in the legacy shape (no
+    // `last_entity_ids`) plus a `drive_changes_page_token` kv row that should
+    // be purged on upgrade.
+    const v3 = new V3Db(name);
+    await v3.open();
+    expect(v3.verno).toBe(3);
+    await v3.table('file_meta').put({
+      file_id: 'fil-legacy',
+      entity_type: 'trip',
+      entity_id: 'trp_legacy',
+      head_revision_id: 'rev-1',
+      modified_time: '2026-01-01T00:00:00.000Z',
+      path: 'Trips/legacy/Trip.md',
+    });
+    await v3.table('kv').put({ key: 'drive_changes_page_token', value: 'stale-token' });
+    v3.close();
+
+    // Phase 2 — reopen via TravelDB; upgrade runs.
+    const v4 = new TravelDB(name);
+    await v4.open();
+    expect(v4.verno).toBe(4);
+
+    const row = (await v4.file_meta.get('fil-legacy')) as
+      | (Record<string, unknown> & { last_entity_ids: unknown })
+      | undefined;
+    expect(row).toBeDefined();
+    expect(row?.last_entity_ids).toEqual(['trp_legacy']);
+
+    // Token gone — pre-v4 walks may have silently skipped non-trip files,
+    // so the next pull must take the backfill path.
+    expect(await v4.kv.get('drive_changes_page_token')).toBeUndefined();
+
+    const marker = await v4.kv.get('__schema_v4__');
+    expect(marker?.value).toBe('true');
+
+    v4.close();
+  });
+
+  it('a fresh DB opens directly at v4', async () => {
+    const name = `travel-fresh-v4-${Math.random().toString(36).slice(2)}`;
+    dbsToCleanup.push(name);
+
+    const db = new TravelDB(name);
+    await db.open();
+    expect(db.verno).toBe(4);
+
+    await db.file_meta.put({
+      file_id: 'fil-fresh',
+      entity_type: 'expense',
+      entity_id: 'exp_a',
+      last_entity_ids: ['exp_a', 'exp_b'],
+      head_revision_id: 'rev-1',
+      modified_time: '2026-01-01T00:00:00.000Z',
+      path: 'Trips/x/Expenses/2026-01.md',
+    });
+    const back = await db.file_meta.get('fil-fresh');
+    expect(back?.last_entity_ids).toEqual(['exp_a', 'exp_b']);
 
     db.close();
   });

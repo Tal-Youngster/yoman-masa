@@ -13,6 +13,7 @@ export {
 } from './serializer';
 export { tasksFilePath, taskBlockRef } from './paths';
 export { taskReconciler, type TaskPayload } from './reconciler';
+export { taskInboundReconciler } from './inbound';
 export { registerTaskReconcilers } from './register';
 export {
   listTasksByTrip,
