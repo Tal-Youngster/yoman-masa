@@ -27,9 +27,10 @@ const booked = (checkin: string, checkout: string, trip_id: Trip['id'] = TRIP.id
 
 describe('computeMissingNights', () => {
   it('flags every night when there are no accommodations', () => {
+    // Jul 1 → Jul 10: nights Jul 1..9 (departure day Jul 10 is not a night).
     const r = computeMissingNights(TRIP, []);
-    expect(r.trip_total_nights).toBe(10);
-    expect(r.missing).toHaveLength(10);
+    expect(r.trip_total_nights).toBe(9);
+    expect(r.missing).toHaveLength(9);
     expect(r.covered).toHaveLength(0);
   });
 
@@ -47,7 +48,7 @@ describe('computeMissingNights', () => {
       booked('2026-07-05', '2026-07-11'),
     ]);
     expect(r.missing).toEqual([]);
-    expect(r.covered).toHaveLength(10);
+    expect(r.covered).toHaveLength(9);
   });
 
   it('deduplicates overlapping bookings', () => {
@@ -56,11 +57,7 @@ describe('computeMissingNights', () => {
       booked('2026-07-03', '2026-07-08'),
     ]);
     expect(r.covered).toHaveLength(7); // Jul 1..7
-    expect(r.missing).toEqual([
-      isoDate('2026-07-08'),
-      isoDate('2026-07-09'),
-      isoDate('2026-07-10'),
-    ]);
+    expect(r.missing).toEqual([isoDate('2026-07-08'), isoDate('2026-07-09')]);
   });
 
   it('ignores wishlist and cancelled accommodations', () => {
@@ -81,7 +78,7 @@ describe('computeMissingNights', () => {
       checkout: isoDate('2026-07-11'),
     });
     const r = computeMissingNights(TRIP, [wishlist, cancelled]);
-    expect(r.missing).toHaveLength(10);
+    expect(r.missing).toHaveLength(9);
   });
 
   it('ignores accommodations from other trips', () => {
@@ -94,7 +91,7 @@ describe('computeMissingNights', () => {
     });
     const otherAcc = booked('2026-07-01', '2026-07-11', other.id);
     const r = computeMissingNights(TRIP, [otherAcc]);
-    expect(r.missing).toHaveLength(10);
+    expect(r.missing).toHaveLength(9);
   });
 
   it('single-night booking covers exactly one night', () => {
@@ -102,26 +99,22 @@ describe('computeMissingNights', () => {
     expect(r.covered).toEqual([isoDate('2026-07-05')]);
   });
 
-  it('trip with start_date == end_date has exactly one night', () => {
-    const oneNight = newTrip({
+  it('trip with start_date == end_date has zero nights (same-day trip)', () => {
+    const sameDay = newTrip({
       slug: 'one',
-      name: 'One Night',
+      name: 'Same Day',
       start_date: isoDate('2026-07-05'),
       end_date: isoDate('2026-07-05'),
       home_currency: currency('USD'),
     });
-    const r = computeMissingNights(oneNight, []);
-    expect(r.trip_total_nights).toBe(1);
-    expect(r.missing).toEqual([isoDate('2026-07-05')]);
+    const r = computeMissingNights(sameDay, []);
+    expect(r.trip_total_nights).toBe(0);
+    expect(r.missing).toEqual([]);
   });
 
   it('handles bookings extending past the trip end', () => {
     const r = computeMissingNights(TRIP, [booked('2026-07-08', '2026-07-20')]);
-    expect(r.covered).toEqual([
-      isoDate('2026-07-08'),
-      isoDate('2026-07-09'),
-      isoDate('2026-07-10'),
-    ]);
+    expect(r.covered).toEqual([isoDate('2026-07-08'), isoDate('2026-07-09')]);
   });
 
   it('handles bookings starting before the trip start', () => {

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Card } from '@/ui/components';
 import { computeMissingNights, groupMissingGaps } from '@/features/missing-nights/compute';
-import { dateRangeArray } from '@/domain/dates';
+import { addDays, dateRangeArray } from '@/domain/dates';
 import type { Trip } from '@/domain/trip';
 import type { Accommodation } from '@/domain/accommodation';
 
@@ -22,8 +22,8 @@ type Segment = {
 
 export function TripCalendar({ trip, accommodations, onAccommodationClick, onMissingClick }: TripCalendarProps): React.JSX.Element {
   const { allDates, segments, dateToIndex } = useMemo(() => {
-    // allDates is the actual days from start to end (inclusive)
-    const dates = dateRangeArray(trip.start_date, trip.end_date);
+    // allDates spans arrival (start_date) through departure (end_date), inclusive.
+    const dates = dateRangeArray(trip.start_date, addDays(trip.end_date, 1));
     
     const relevant = accommodations.filter(a => a.trip_id === trip.id && a.status === 'booked');
     
