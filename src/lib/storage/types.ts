@@ -69,7 +69,21 @@ export interface WriteQueueItem {
 export interface FileMeta {
   file_id: string;
   entity_type: EntityType;
+  /**
+   * Representative entity id for legacy single-entity-per-file layouts
+   * (Trip.md, Accommodations/*.md, Places/*.md). For ledger files this is
+   * the *first* parsed entity id; prefer `last_entity_ids` for the full set.
+   * Indexed so `getFileMetaByEntity` stays cheap.
+   */
   entity_id: string;
+  /**
+   * All entity ids the inbound worker last parsed out of this file (v4+).
+   * For single-entity files this is `[entity_id]`. For ledger files this is
+   * the snapshot used to compute per-row deletes on the next ingest:
+   * `prev \ now` rows are deleted before upserting `now`. See ADR-0014
+   * addendum (2026-06-06).
+   */
+  last_entity_ids: readonly string[];
   head_revision_id: string;
   /** RFC 3339 from Drive (kept as-is to compare with future fetches). */
   modified_time: string;

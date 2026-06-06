@@ -164,9 +164,32 @@ export async function ingestFile(
     return;
   }
 
+  // Ledger delta: any id that was in the file last tick but isn't now is a
+  // row the user (or another device) removed from the ledger. Compute this
+  // BEFORE the upsert pass so we don't accidentally delete an entity we
+  // just upserted under a different id.
+  const prevMeta = await getFileMeta(input.fileId, deps.db);
+  // Defensive `?? []` covers any pre-v4 row the migration missed (the field
+  // is required at the type level but a stray legacy row would still be
+  // `undefined` at runtime).
+  const prevIds = (prevMeta?.last_entity_ids ?? []) as readonly string[];
+  const nowIds = entities.map((e) => reconciler.entityId(e));
+  const nowSet = new Set(nowIds);
+
+  for (const goneId of prevIds) {
+    if (nowSet.has(goneId)) continue;
+    // Pending-write guard mirrors the upsert path: if a local write for this
+    // entity is queued, the user might be racing a remote delete with a
+    // local edit — keep both intact and let the next tick decide.
+    if (await hasPendingWrite(deps.db, reconciler.entityType, goneId)) continue;
+    await reconciler.deleteEntity(goneId, deps.db);
+    report.removed += 1;
+  }
+
   let appliedAny = false;
-  for (const entity of entities) {
-    const id = reconciler.entityId(entity);
+  for (let i = 0; i < entities.length; i += 1) {
+    const entity = entities[i];
+    const id = nowIds[i] ?? reconciler.entityId(entity);
     // Mark alive whether or not we end up upserting — Drive showed us this
     // entity, so the backfill sweep should not delete it even if we skipped
     // the upsert because of a pending local write.
@@ -179,19 +202,18 @@ export async function ingestFile(
     appliedAny = true;
   }
 
-  // Only record file_meta for single-entity files. Multi-entity ledger files
-  // need a per-file-snapshot strategy that's out of scope for this slice
-  // (see ADR-0014 "Ledger files" / "Sharp edges"). Until ledger inbound
-  // wiring lands, we deliberately leave file_meta alone for those — the
-  // outbound side still writes its own entries on each push, so we don't
-  // lose track of ledger files entirely.
-  if (entities.length === 1 && appliedAny) {
-    const id = reconciler.entityId(entities[0]);
+  // Always record file_meta — single-entity and ledger both use the same
+  // shape now (v4+). `last_entity_ids` is the snapshot the next ingest will
+  // diff against. `entity_id` keeps the first id as a representative so the
+  // existing `getFileMetaByEntity` index lookup stays cheap; readers that
+  // need the full set use `last_entity_ids`.
+  if (appliedAny || prevMeta) {
     await upsertFileMeta(
       {
         file_id: input.fileId,
         entity_type: reconciler.entityType,
-        entity_id: id,
+        entity_id: nowIds[0] ?? prevMeta?.entity_id ?? '',
+        last_entity_ids: nowIds,
         head_revision_id: input.headRevisionId,
         modified_time: input.modifiedTime,
         path: input.relPath,
@@ -213,21 +235,39 @@ async function handleRemoval(
     report.skipped += 1;
     return;
   }
-  if (await hasPendingWrite(deps.db, fm.entity_type, fm.entity_id)) {
-    // A local write for this entity is queued. The user might be racing a
-    // remote delete with a local edit — keep both intact and let the next
-    // tick (after the local write lands or is dead-lettered) decide.
-    report.skipped += 1;
-    return;
-  }
   const reconciler = deps.registry.get(fm.entity_type);
   if (!reconciler) {
     report.skipped += 1;
     return;
   }
-  await reconciler.deleteEntity(fm.entity_id, deps.db);
-  await deleteFileMeta(fm.file_id, deps.db);
-  report.removed += 1;
+
+  // Iterate the full last-seen entity set so ledger files (Expenses,
+  // Tasks) propagate a whole-file delete to every row they contained.
+  // Fall back to `[entity_id]` for any pre-v4 file_meta that slipped
+  // through migration (the field is declared required, but a row
+  // written before v4 and missed by the upgrade hook would still satisfy
+  // the type at compile time while being `undefined` at runtime —
+  // defensive read here).
+  const lastIds = (fm.last_entity_ids ?? []) as readonly string[];
+  const ids = lastIds.length > 0 ? lastIds : [fm.entity_id];
+
+  let anyDeleted = false;
+  for (const id of ids) {
+    if (await hasPendingWrite(deps.db, fm.entity_type, id)) {
+      // A local write for this entity is queued. Keep it intact; the next
+      // tick (after the local write lands or is dead-lettered) will decide.
+      continue;
+    }
+    await reconciler.deleteEntity(id, deps.db);
+    anyDeleted = true;
+    report.removed += 1;
+  }
+
+  // Only drop the file_meta if we actually completed the removal. If every
+  // id was pending-write-suppressed, keep the row so the next pass sees the
+  // same prev set and can re-attempt.
+  if (anyDeleted) await deleteFileMeta(fm.file_id, deps.db);
+  if (!anyDeleted) report.skipped += 1;
 }
 
 /**

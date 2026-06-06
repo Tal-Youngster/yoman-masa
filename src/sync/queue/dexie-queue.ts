@@ -20,7 +20,9 @@
 import {
   db as defaultDb,
   dequeueById,
+  deleteFileMeta,
   enqueueWrite,
+  getFileMeta,
   peekNextPending,
   recordQueueFailure,
   upsertFileMeta,
@@ -142,18 +144,42 @@ export function createDexieWriteQueue(db?: TravelDB): DexieWriteQueue {
 
     async markApplied(id: string, newRevision?: string, fileId?: string): Promise<void> {
       claimed.delete(id);
-      
+
       const row = await handle.write_queue.get(id);
       if (row && fileId && newRevision) {
-        // 1. Write the new file_meta to local storage
-        await upsertFileMeta({
-          file_id: fileId,
-          entity_type: row.entity_type,
-          entity_id: row.entity_id,
-          head_revision_id: newRevision,
-          modified_time: new Date().toISOString(), // Approximate
-          path: row.resolved_path
-        }, handle);
+        // 1. Update file_meta. `last_entity_ids` merges with any existing
+        //    snapshot (rather than replacing) so ledger files don't lose
+        //    the inbound-side per-file entity set when one row is written
+        //    or deleted outbound. See ADR-0014 addendum (2026-06-06).
+        const existing = await getFileMeta(fileId, handle);
+        const prevIds = existing?.last_entity_ids ?? [];
+        const nextIds =
+          row.op === 'delete'
+            ? prevIds.filter((eid) => eid !== row.entity_id)
+            : prevIds.includes(row.entity_id)
+              ? prevIds
+              : [...prevIds, row.entity_id];
+
+        // Whole-file delete (single-entity file, last row in a ledger we knew
+        // about): drop the file_meta entirely. The next inbound pull will
+        // recreate it if Drive still has the file (e.g. a different device
+        // re-created an entity in it).
+        if (row.op === 'delete' && nextIds.length === 0) {
+          await deleteFileMeta(fileId, handle);
+        } else {
+          await upsertFileMeta(
+            {
+              file_id: fileId,
+              entity_type: row.entity_type,
+              entity_id: row.entity_id,
+              last_entity_ids: nextIds,
+              head_revision_id: newRevision,
+              modified_time: new Date().toISOString(), // Approximate
+              path: row.resolved_path,
+            },
+            handle,
+          );
+        }
 
         // 2. Patch any pending queue items for the same entity that are missing file_id
         await handle.write_queue

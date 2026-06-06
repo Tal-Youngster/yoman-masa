@@ -294,6 +294,7 @@ describe('file_meta', () => {
       file_id: 'drive-file-1',
       entity_type: 'trip' as const,
       entity_id: trip.id,
+      last_entity_ids: [trip.id],
       head_revision_id: 'rev-1',
       modified_time: '2026-05-22T10:00:00.000Z',
       path: '/Travel/Trips/thailand-2026/Trip.md',
