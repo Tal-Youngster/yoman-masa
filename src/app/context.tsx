@@ -8,6 +8,7 @@ import type { PullReport } from '@/sync/pull';
 import type { AiClient } from '@/lib/ai/client';
 import type { ExpensesAdminService } from '@/features/expenses';
 import type { TasksAdminService } from '@/features/tasks';
+import type { ShoppingAdminService } from '@/features/shopping';
 
 /**
  * Side-effectful trip-creation surface. The trips slice's UI calls this
@@ -61,6 +62,8 @@ export interface AppServices {
   expensesAdmin?: ExpensesAdminService;
   /** Tasks mutation surface (S10). Optional so tests can stub. */
   tasksAdmin?: TasksAdminService;
+  /** Shopping mutation surface (S11). Optional so tests can stub. */
+  shoppingAdmin?: ShoppingAdminService;
   /**
    * Inbound Drive → Dexie sync (ADR-0014). Resolves the configured Travel
    * folder, runs `pullAll` against the inbound registry, and returns the

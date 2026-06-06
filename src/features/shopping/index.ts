@@ -29,3 +29,4 @@ export {
   type ShoppingScope,
   type AddShoppingItemInput,
 } from './shopping-admin';
+export { registerShoppingReconcilers } from './register';
