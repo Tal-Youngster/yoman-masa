@@ -5,7 +5,7 @@
  * file lives at `Trips/<slug>/Places/<slug>.md` (see `paths.ts`).
  */
 
-import { Place } from '@/domain/place';
+import type { Place } from '@/domain/place';
 import { deletePlace as deletePlaceRow, upsertPlace } from '@/lib/storage';
 import type { InboundReconciler } from '@/sync/pull';
 

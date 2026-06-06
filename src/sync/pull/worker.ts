@@ -172,7 +172,7 @@ export async function ingestFile(
   // Defensive `?? []` covers any pre-v4 row the migration missed (the field
   // is required at the type level but a stray legacy row would still be
   // `undefined` at runtime).
-  const prevIds = (prevMeta?.last_entity_ids ?? []) as readonly string[];
+  const prevIds = (prevMeta?.last_entity_ids ?? []);
   const nowIds = entities.map((e) => reconciler.entityId(e));
   const nowSet = new Set(nowIds);
 
@@ -248,7 +248,7 @@ async function handleRemoval(
   // written before v4 and missed by the upgrade hook would still satisfy
   // the type at compile time while being `undefined` at runtime —
   // defensive read here).
-  const lastIds = (fm.last_entity_ids ?? []) as readonly string[];
+  const lastIds = (fm.last_entity_ids ?? []);
   const ids = lastIds.length > 0 ? lastIds : [fm.entity_id];
 
   let anyDeleted = false;

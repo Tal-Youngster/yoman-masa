@@ -6,7 +6,7 @@
  * the worker treats it identically to a Trip.md.
  */
 
-import { Accommodation } from '@/domain/accommodation';
+import type { Accommodation } from '@/domain/accommodation';
 import {
   deleteAccommodation as deleteAccommodationRow,
   upsertAccommodation,

@@ -11,7 +11,7 @@
  * pull pass.
  */
 
-import { Expense } from '@/domain/expense';
+import type { Expense } from '@/domain/expense';
 import { deleteExpense as deleteExpenseRow, upsertExpense } from '@/lib/storage';
 import type { InboundReconciler } from '@/sync/pull';
 

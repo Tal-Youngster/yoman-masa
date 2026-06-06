@@ -536,7 +536,7 @@ describe('ingestFile — ledger semantics (v4)', () => {
       .where('file_id')
       .equals(fileId)
       .modify((row) => {
-        delete (row as Record<string, unknown>).last_entity_ids;
+        delete (row as unknown as Record<string, unknown>).last_entity_ids;
       });
     await db.trips.put({ id: 'trp_legacy', name: 'Legacy', type: 'trip' } as never);
 

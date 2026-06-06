@@ -47,7 +47,10 @@ const c = newExpense({
   description: 'snack',
 });
 
-function seedNovemberLedger(drive: FakeDrive, expenses: readonly typeof a[]): string {
+function seedNovemberLedger(
+  drive: FakeDrive,
+  expenses: readonly typeof a[],
+): ReturnType<typeof drive.seedFile> {
   const trips = ensureFolder(drive, 'Trips', drive.travelFolderId, 'MyVault/Travel/Trips');
   const slug = ensureFolder(drive, 'argentina', trips, 'MyVault/Travel/Trips/argentina');
   const exp = ensureFolder(drive, 'Expenses', slug, 'MyVault/Travel/Trips/argentina/Expenses');
