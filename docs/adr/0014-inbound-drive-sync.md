@@ -226,3 +226,84 @@ export interface InboundReconciler<E = unknown> {
 Each slice's reconciler implements this with one Dexie query — typically
 `db.<table>.toCollection().primaryKeys()` followed by a defensive string
 filter.
+
+## Addendum (2026-06-06): ledger inbound + per-file entity snapshot
+
+The original S14 wiring only registered `tripInboundReconciler`. Accommodation,
+Place, Expense, and Task files were written to Drive by the outbound side but
+not read back — `backfill`'s walk visited them, the registry returned `null`,
+and they were counted as `report.skipped`. A second device pointed at the same
+vault saw trips but nothing else. This addendum closes that gap.
+
+Two shapes of files exist in the vault:
+
+- **Single-entity files** (`Trips/<slug>/Trip.md`, `Accommodations/*.md`,
+  `Places/*.md`). One file → one entity. The original inbound contract handles
+  these cleanly: parse, upsert, record `file_meta`.
+- **Ledger files** (`Expenses/<yyyy-mm>.md`, `Tasks.md`). One file → N entities.
+  Upserts are still straightforward (parse, upsert each), but **per-row
+  deletes** are not: if a row disappears from the ledger between syncs, the
+  worker has no way to spot it — it just sees the N rows that are still
+  there. The original ADR noted this as "Deferred to the slice that wires
+  expenses/tasks inbound." This is that slice.
+
+### What changed
+
+`FileMeta` gains `last_entity_ids: readonly string[]` (Dexie v4). The pull
+worker now treats this as the per-file ground truth and computes deltas
+against it:
+
+1. On every successful `ingestFile`, compute `prevIds = file_meta.last_entity_ids`
+   (defaulting to `[entity_id]` for the legacy single-entity row, or `[]` for
+   a brand-new file) and `nowIds = entities.map(entityId)`.
+2. For each `id ∈ prevIds \ nowIds` not gated by `hasPendingWrite`, call
+   `reconciler.deleteEntity(id, db)` and bump `report.removed` — a row that
+   was in the ledger last tick but isn't now.
+3. Upsert all `nowIds` as before.
+4. `upsertFileMeta` with `last_entity_ids: nowIds`. This now runs for every
+   ingest, not just single-entity files — the old "only record file_meta for
+   single-entity files" guard was a workaround for not having delta support
+   and is removed.
+
+`handleRemoval` (whole-file disappeared) iterates `last_entity_ids` instead
+of only `fm.entity_id`. Deleting an entire ledger file in Drive now removes
+every row it contained.
+
+### Schema migration (v4)
+
+The v4 `upgrade` does two things:
+
+1. Backfill `last_entity_ids = [entity_id]` on every existing `file_meta`
+   row. Correct for trip/accommodation/place metas, approximate-but-safe
+   for any expense metas the outbound side wrote pre-v4 (worst case the
+   next inbound tick computes one extra `deleteEntity` no-op when the
+   ledger turns out to contain more rows than that).
+2. **Delete `kv.drive_changes_page_token`.** Pre-v4 the change-feed token
+   was captured at the end of a walk that silently skipped any file the
+   inbound registry didn't claim. After upgrade, those files still exist
+   in Drive but won't appear in the change feed — they haven't changed
+   since the token was captured. The only honest way to surface them is
+   to force the next pull onto the backfill path. The token drop is
+   logically required, not a convenience: v4 changes what `file_meta`
+   *means* (per-file entity set, not just one id), and the only
+   authoritative source for that field is a re-read from Drive.
+
+Cost: one extra full backfill per existing device after upgrade. Personal-
+vault scale, masked by the existing "Syncing…" UI.
+
+### Slice registration
+
+Four new inbound reconcilers, one per slice, registered alongside the
+existing outbound registration in each `register*.ts`:
+
+- `accommodationInboundReconciler` — matches `Trips/<slug>/Accommodations/<file>.md`.
+- `placeInboundReconciler` — matches `Trips/<slug>/Places/<file>.md`.
+- `expenseInboundReconciler` — matches `Trips/<slug>/Expenses/<yyyy-mm>.md`, returns
+  the parsed `expenses` array from `parseExpensesLedger`.
+- `taskInboundReconciler` — matches either `Trips/<slug>/Tasks.md` or
+  `General/Tasks.md`, returns the parsed `tasks` array. Cross-trip General
+  tasks carry `trip_id: null`.
+
+Each implements `listEntityIds` via `db.<table>.toCollection().primaryKeys()`
+so the existing aggressive backfill sweep applies to all four entity types.
+
