@@ -10,7 +10,9 @@ export interface MissingNightsResult {
 }
 
 /**
- * Enumerate every night in [trip.start_date, trip.end_date] (inclusive of last night).
+ * Enumerate every night in [trip.start_date, trip.end_date) — half-open, because
+ * end_date is the departure day, not a sleeping night (consistent with accommodation
+ * checkout). The last night is therefore the night of end_date − 1.
  * A night is covered iff some booked accommodation has checkin ≤ night < checkout.
  */
 export function computeMissingNights(
@@ -24,7 +26,7 @@ export function computeMissingNights(
     for (const night of eachDayInRange(a.checkin, a.checkout)) covered.add(night);
   }
 
-  const allNights = dateRangeArray(trip.start_date, addDays(trip.end_date, 1));
+  const allNights = dateRangeArray(trip.start_date, trip.end_date);
 
   const missing: IsoDate[] = [];
   const coveredList: IsoDate[] = [];
