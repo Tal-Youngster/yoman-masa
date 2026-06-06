@@ -15,3 +15,17 @@ export {
 export { shoppingFilePath, shoppingItemBlockRef } from './paths';
 export { shoppingItemReconciler, type ShoppingItemPayload } from './reconciler';
 export { shoppingInboundReconciler } from './inbound';
+export {
+  listShoppingItemsByTrip,
+  listGeneralShoppingItems,
+  upsertShoppingItem,
+  getShoppingItem,
+  deleteShoppingItem,
+} from './queries';
+export {
+  createShoppingAdmin,
+  type ShoppingAdminService,
+  type ShoppingAdminDeps,
+  type ShoppingScope,
+  type AddShoppingItemInput,
+} from './shopping-admin';
