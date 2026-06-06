@@ -14,3 +14,4 @@ export {
 } from './serializer';
 export { shoppingFilePath, shoppingItemBlockRef } from './paths';
 export { shoppingItemReconciler, type ShoppingItemPayload } from './reconciler';
+export { shoppingInboundReconciler } from './inbound';
