@@ -6,7 +6,9 @@ Multi-agent dispatch plan for the Travel Journal app. Each slice is sized to be 
 
 ### In-flight (open PRs)
 
-_None._ The previous in-flight batch (S10 quick-add, S8b Google Maps pivot, Drive auth persistence, S14 inbound sync) all landed; their entries moved to **Completed** below. Next up: **S9 — Path map** (re-spec'd against Google Maps), still unstarted; see the slice catalog below.
+- **S15 — Accommodation from Gmail** (`slice/S15-gmail-accommodation`, ADR-0016). Adds Gmail as a third AI-extraction source for accommodations, alongside the existing URL + screenshot flow. New `src/lib/gmail/` read-only client (`listRecentInbox` / `getMessageText`, real REST + `FakeGmail`, pure MIME decode in `mime.ts`), `gmail.readonly` added to the GIS scope in `main.tsx` (same token authorizes Drive + Gmail), `AiClient.extractData` gains an optional `text` input, and a `GmailPicker` (recent-inbox list) wired into `AiExtractionDialog`. Shared prompt/types extracted to `features/accommodations/ai-extraction.ts`. Body text only — attachments deferred. Gates green; 16 new tests (MIME decode + client auth paths).
+
+Next up: **S9 — Path map** (re-spec'd against Google Maps), still unstarted; see the slice catalog below.
 
 ### Completed
 
@@ -817,6 +819,50 @@ Make it install cleanly on the Pixel, deploy to Cloudflare Pages, and document t
 > Your goal: ship-ready icons, install UX, update + offline indicators, GitHub Actions CI, Cloudflare Pages deployment. Verify the install flow on the user's Pixel and laptop and document the path end-to-end in the README.
 >
 > Branch: `slice/S13-ship`. Don't ship without proof: paste a deployed URL into the PR description and screenshots of the install flow. Open a PR titled `S13 — PWA polish + deploy` when gates are green.
+
+---
+
+## S15 — Accommodation from Gmail
+
+- **Phase:** 3 — Features (follow-up to S6)
+- **Depends on:** S6 (accommodations), existing AI extraction (`src/lib/ai/`)
+- **Owned directories:** `src/lib/gmail/`, `src/features/accommodations/`
+- **Branch:** `slice/S15-gmail-accommodation`
+
+### Goal
+
+Let the user pick a confirmation email from their Gmail inbox and AI-extract it
+into a prefilled accommodation form — a third input source next to the existing
+URL and screenshot extraction.
+
+### Scope (in)
+
+- **`gmail.readonly` OAuth scope** added to the GIS token request (ADR-0016).
+  The single ~1h access token authorizes both Drive and Gmail; scope composed
+  in `main.tsx`, not in the `drive/` module.
+- **`src/lib/gmail/`** — read-only `GmailClient` (`listRecentInbox`,
+  `getMessageText`), real REST implementation reusing the Drive access-token
+  getter, in-memory `FakeGmail`, and pure MIME helpers (`mime.ts`: base64url
+  decode, multipart body extraction, metadata parse).
+- **`AiClient.extractData`** gains an optional `text` input (raw email body).
+- **`GmailPicker`** — recent-inbox list (sender / subject / date), tap a row →
+  fetch body → extract → prefill the form. Wired into `AiExtractionDialog`.
+- Shared prompt/types/sanitizer extracted to
+  `features/accommodations/ai-extraction.ts`.
+
+### Scope (out)
+
+- PDF/image email attachments (body text only for v1).
+- Gmail search / labels (recent-inbox list only).
+- Other entity types (accommodations only).
+
+### Acceptance
+
+- MIME decode + body extraction unit-tested (base64url, nested multipart,
+  attachment skipping, HTML fallback).
+- Gmail client maps the inbox list and surfaces `GmailAuthError` on 401/403.
+- Picker handles not-connected / needs-reconnect / empty-inbox states.
+- ADR-0016 referenced from the PR. Gates green.
 
 ---
 
