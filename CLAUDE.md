@@ -108,8 +108,9 @@ The data model and auth choices were made so these don't require a rewrite later
 | Task manual order?                      | ADR-0012 |
 | Why Google Maps (replaces ADR-0005)?    | ADR-0013 |
 | Inbound Drive → Dexie sync?             | ADR-0014 |
-| Path map rendering on Google Maps?      | ADR-0015 |
+| Path map rendering on Google Maps?      | ADR-0015 — **superseded by ADR-0017** |
 | Gmail read integration (accommodations)?| ADR-0016 |
+| Trip-centric navigation + UI refactor?  | ADR-0017 |
 
 ## When to ask the user
 

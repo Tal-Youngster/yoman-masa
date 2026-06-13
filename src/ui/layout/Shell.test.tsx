@@ -37,15 +37,19 @@ describe('Shell', () => {
       expect(matches.length, `tab ${tab.label}`).toBeGreaterThan(0);
     }
 
-    // Dashboard placeholder rendered.
-    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    // The Trips master tab is rendered separately from the per-trip tabs.
+    const tripsMatches = navs.flatMap((nav) => within(nav).queryAllByText('Trips', { exact: true }));
+    expect(tripsMatches.length).toBeGreaterThan(0);
+
+    // Trip Overview (the default route) rendered.
+    expect(await screen.findByRole('heading', { name: 'Trip Overview' })).toBeInTheDocument();
   });
 
-  it('navigates between all 8 tabs', async () => {
+  it('navigates between all tabs, including the separated Trips master tab', async () => {
     const user = userEvent.setup();
     renderApp();
 
-    await screen.findByRole('heading', { name: 'Dashboard' });
+    await screen.findByRole('heading', { name: 'Trip Overview' });
 
     for (const tab of TABS) {
       const navs = await screen.findAllByRole('navigation', { name: 'Primary' });
@@ -53,16 +57,23 @@ describe('Shell', () => {
       if (!sideNav) throw new Error('expected primary nav');
       const link = within(sideNav).getByRole('link', { name: tab.label });
       await user.click(link);
-      // The placeholder route's Card title matches the tab label.
+      // The route's heading matches the tab label.
       await screen.findByRole('heading', { name: tab.label });
     }
+
+    // The Trips master tab lives outside TABS but still navigates.
+    const navs = await screen.findAllByRole('navigation', { name: 'Primary' });
+    const sideNav = navs[0];
+    if (!sideNav) throw new Error('expected primary nav');
+    await user.click(within(sideNav).getByRole('link', { name: 'Trips' }));
+    await screen.findByRole('heading', { name: 'Trips' });
   });
 
   it('uses aria-current on the active link', async () => {
     const user = userEvent.setup();
     renderApp();
 
-    await screen.findByRole('heading', { name: 'Dashboard' });
+    await screen.findByRole('heading', { name: 'Trip Overview' });
 
     const navs = await screen.findAllByRole('navigation', { name: 'Primary' });
     const sideNav = navs[0];
@@ -78,7 +89,7 @@ describe('Shell', () => {
       );
     });
     // Dashboard link should no longer be aria-current.
-    expect(within(sideNav).getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute(
+    expect(within(sideNav).getByRole('link', { name: 'Trip Overview' })).not.toHaveAttribute(
       'aria-current',
     );
   });
@@ -157,7 +168,7 @@ describe('Shell', () => {
     // Land on the dashboard ('/'), NOT /trips, with a stale folder id persisted.
     const { services } = renderApp({ initialPath: '/', travelFolderId: 'fld-000002', drive });
 
-    await screen.findByRole('heading', { name: 'Dashboard' });
+    await screen.findByRole('heading', { name: 'Trip Overview' });
     await waitFor(async () => {
       expect(await services.kv.get('travel_folder_file_id')).toBeNull();
     });

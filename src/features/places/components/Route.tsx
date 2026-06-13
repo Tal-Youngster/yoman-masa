@@ -97,7 +97,7 @@ export function PlacesRoute(): React.JSX.Element {
     return (
       <div className="flex flex-col gap-4">
         <header>
-          <h2 className="text-lg font-semibold text-on-surface">Places</h2>
+          <h2 className="text-lg font-semibold text-on-surface">Trip Map</h2>
         </header>
         <p className="text-sm text-on-surface-variant">Please set an active trip first in the Trips tab.</p>
       </div>
@@ -108,8 +108,8 @@ export function PlacesRoute(): React.JSX.Element {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-on-surface">Places</h2>
-          <p className="text-xs text-on-surface-variant">Manage your wishlist and visited spots for {activeTrip.name}.</p>
+          <h2 className="text-lg font-semibold text-on-surface">Trip Map</h2>
+          <p className="text-xs text-on-surface-variant">Map your wishlist, visited spots, and stays for {activeTrip.name}.</p>
         </div>
         <div>
           <Button onClick={openCreate} aria-label="New place">+</Button>

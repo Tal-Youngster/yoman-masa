@@ -37,8 +37,8 @@ export function MoreNavSheet({ open, onClose }: MoreNavSheetProps): React.JSX.El
     .map((to) => TABS.find((t) => t.to === to))
     .filter((t): t is TabDef => t !== undefined);
 
-  const pinnedTabs = sortedTabs.slice(0, 4);
-  const moreTabs = sortedTabs.slice(4);
+  const pinnedTabs = sortedTabs.slice(0, 3);
+  const moreTabs = sortedTabs.slice(3);
 
   // TouchSensor delay prevents drag from hijacking scroll on mobile; keyboard sensor keeps reordering
   // reachable for users who can't (or don't want to) drag.
@@ -101,7 +101,7 @@ export function MoreNavSheet({ open, onClose }: MoreNavSheetProps): React.JSX.El
               <div className="flex flex-col gap-6">
                 <div>
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
-                    Pinned to Navbar (Max 4)
+                    Pinned to Navbar (Max 3)
                   </h3>
                   <ul className="flex flex-col gap-1">
                     {pinnedTabs.map((tab) => (

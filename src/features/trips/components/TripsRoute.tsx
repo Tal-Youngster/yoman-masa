@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 
 import { Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
+import { useActiveTrip } from '@/ui/layout/useActiveTrip';
 import { useValidateTravelFolder } from '@/app/use-validate-travel-folder';
 import type { Trip } from '@/domain/trip';
 
@@ -17,6 +19,8 @@ import { TripsList } from './TripsList';
  */
 export function TripsRoute(): React.JSX.Element {
   const { tripsAdmin } = useAppServices();
+  const { setActiveTrip } = useActiveTrip();
+  const navigate = useNavigate();
 
   // Validates the persisted folder id (see useValidateTravelFolder); the setter
   // lets a fresh pick reveal the list without re-reading.
@@ -32,6 +36,13 @@ export function TripsRoute(): React.JSX.Element {
   function openEdit(trip: Trip): void {
     setEditing(trip);
     setSheetOpen(true);
+  }
+
+  // Tapping a trip row makes it the active trip and drops the user into the
+  // trip-scoped Overview — the Trips tab is the "switch context" master.
+  async function handleEnter(trip: Trip): Promise<void> {
+    await setActiveTrip(trip.id);
+    await navigate({ to: '/' });
   }
 
   async function handleDelete(trip: Trip): Promise<void> {
@@ -99,7 +110,11 @@ export function TripsRoute(): React.JSX.Element {
 
 
 
-      <TripsList onEdit={openEdit} onDelete={handleDelete} />
+      <TripsList
+        onEnter={(t) => void handleEnter(t)}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+      />
 
       <Sheet
         open={sheetOpen}

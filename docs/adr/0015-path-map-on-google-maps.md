@@ -1,7 +1,11 @@
 # ADR 0015: Path map rendering on Google Maps
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0017
 - **Date:** 2026-05-30
+
+> **Superseded (2026-06-13):** The standalone Path map feature was removed in
+> the trip-centric UI refactor (ADR-0017). This ADR is retained for history; the
+> `path-map` feature code is recoverable from git if a journey view returns.
 
 ## Context
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { MoreHorizontal } from 'lucide-react';
-import { TABS, type TabDef } from './tabs';
+import { TABS, TRIPS_TAB, type TabDef } from './tabs';
 import { cn } from '../components/cn';
 import { TabIcon } from './SideNav';
 import { useNavStore } from '../../lib/navStore';
@@ -15,7 +15,9 @@ export function BottomNav(): React.JSX.Element {
     .map((to) => TABS.find((t) => t.to === to))
     .filter((t): t is TabDef => t !== undefined);
 
-  const pinnedTabs = sortedTabs.slice(0, 4);
+  // Slot 1 is the Trips master tab; that leaves three pinned per-trip tabs
+  // before the More overflow.
+  const pinnedTabs = sortedTabs.slice(0, 3);
 
   return (
     <>
@@ -28,6 +30,18 @@ export function BottomNav(): React.JSX.Element {
         )}
       >
         <ul className="grid grid-cols-5">
+          <li className="contents">
+            <Link
+              to={TRIPS_TAB.to}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-primary transition-colors"
+              activeProps={{ 'aria-current': 'page', className: 'text-primary' }}
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
+                <TabIcon name={TRIPS_TAB.icon} className="h-4 w-4 shrink-0" />
+              </span>
+              <span>{TRIPS_TAB.shortLabel}</span>
+            </Link>
+          </li>
           {pinnedTabs.map((tab) => (
             <li key={tab.to} className="contents">
               <Link
