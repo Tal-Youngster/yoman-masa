@@ -2,6 +2,8 @@ export interface AiExtractParams {
   url?: string;
   imageBase64?: string;
   imageMimeType?: string;
+  /** Raw text context (e.g. an email body) appended verbatim to the prompt. */
+  text?: string;
   prompt: string;
 }
 
@@ -18,8 +20,13 @@ export class GeminiClient implements AiClient {
     this.apiKey = apiKey;
   }
 
-  async extractData<T>({ url, imageBase64, imageMimeType, prompt }: AiExtractParams): Promise<T> {
+  async extractData<T>({ url, imageBase64, imageMimeType, text, prompt }: AiExtractParams): Promise<T> {
     let textContext = '';
+
+    if (text) {
+      // Raw text (e.g. an email body) — no fetch, just truncate defensively.
+      textContext = text.slice(0, 100000);
+    }
 
     if (url) {
       try {
