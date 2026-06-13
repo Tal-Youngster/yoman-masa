@@ -38,6 +38,15 @@ const geminiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
 
 import type { DriveClient } from './sync/drive';
 import { GeminiClient } from './lib/ai/client';
+import { RealGmailClient, type GmailClient } from './lib/gmail';
+
+/**
+ * Combined OAuth scope (ADR-0003 + ADR-0016). The single GIS access token now
+ * authorizes both Drive and read-only Gmail. gmail.readonly is a Google
+ * "restricted" scope; fine in the current testing-mode single-user consent.
+ */
+const OAUTH_SCOPE =
+  'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.readonly openid email profile';
 
 /**
  * localStorage-backed auth persistence. ADR-0003 forbids storing refresh
@@ -98,9 +107,12 @@ function createLocalStoragePersistence(): AuthPersistence | undefined {
 const TRAVEL_PREFIX = 'Travel';
 
 let drive: DriveClient;
+let gmail: GmailClient | undefined;
 if (clientId && developerKey) {
   const persistence = createLocalStoragePersistence();
-  const auth = new DriveAuth({ clientId, ...(persistence ? { persistence } : {}) });
+  const auth = new DriveAuth({ clientId, scope: OAUTH_SCOPE, ...(persistence ? { persistence } : {}) });
+  // Same token, read-only Gmail (ADR-0016).
+  gmail = new RealGmailClient({ getAccessToken: () => auth.getAccessToken() });
   drive = new RealDriveClient({
     auth,
     allowedPrefix: TRAVEL_PREFIX,
@@ -191,6 +203,7 @@ const services = {
   writeQueue,
   pullDriveInbound,
   ...(geminiKey ? { ai: new GeminiClient(geminiKey) } : {}),
+  ...(gmail ? { gmail } : {}),
 };
 
 createRoot(root).render(
