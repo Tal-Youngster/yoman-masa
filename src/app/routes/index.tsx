@@ -1,22 +1,9 @@
 import { Card } from '@/ui/components';
 import { TripsRoute as TripsRouteImpl } from '@/features/trips/components';
+import { OverviewRoute } from '@/features/overview/components';
 export { LoginRoute } from './login';
 
-import { MissingNightsDashboardCard, DaysUntilMissingNightCard } from '@/features/missing-nights/components';
-import { TasksDashboardCard } from '@/features/tasks/components';
-
-export function DashboardRoute(): React.JSX.Element {
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <Card title="Trip Overview" description="Overview of the active trip.">
-        <p className="text-slate-400">Feature content lands in later slices.</p>
-      </Card>
-      <MissingNightsDashboardCard />
-      <DaysUntilMissingNightCard />
-      <TasksDashboardCard />
-    </div>
-  );
-}
+export const DashboardRoute = OverviewRoute;
 
 export const TripsRoute = TripsRouteImpl;
 
