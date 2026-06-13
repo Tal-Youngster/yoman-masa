@@ -4,11 +4,15 @@ import { Button, Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import { useActiveTrip } from '@/ui/layout/useActiveTrip';
 import type { Place } from '@/domain/place';
+import type { Accommodation } from '@/domain/accommodation';
+import { listAccommodationsByTrip } from '@/features/accommodations/queries';
+import { AccommodationView } from '@/features/accommodations/components/AccommodationView';
 
 import { PlaceForm } from './Form';
 import { PlacesList } from './List';
 import { PlaceDetail } from './Detail';
 import { PlacesMap } from './PlacesMap';
+import { MapLegend } from './MapLegend';
 import { placeFilePath } from '../paths';
 import { deletePlace, placesByTrip } from '../queries';
 import { ulid } from 'ulid';
@@ -22,11 +26,19 @@ export function PlacesRoute(): React.JSX.Element {
 
   const [dialogMode, setDialogMode] = useState<DialogMode>('none');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [viewingAcc, setViewingAcc] = useState<Accommodation | null>(null);
 
   // Shared with PlacesMap and PlaceForm. Dexie-subscribed so any write — local
   // or inbound from Drive — flows through without manual invalidation.
   const places = useLiveQuery(
     () => (activeTrip ? placesByTrip(activeTrip.id) : Promise.resolve([])),
+    [activeTrip?.id],
+  ) ?? [];
+
+  // Accommodations are surfaced on the same map (read-only) so the Trip Map is
+  // a single picture of "where I'm staying" + "where I want to go".
+  const accommodations = useLiveQuery(
+    () => (activeTrip ? listAccommodationsByTrip(activeTrip.id) : Promise.resolve([])),
     [activeTrip?.id],
   ) ?? [];
 
@@ -119,11 +131,15 @@ export function PlacesRoute(): React.JSX.Element {
       <div className="h-64 sm:h-96 w-full rounded-xl overflow-hidden border border-outline-variant shadow-sm relative">
         <PlacesMap
           places={places}
+          accommodations={accommodations}
           selected={selectedPlace}
           onMarkerClick={openView}
+          onAccommodationClick={setViewingAcc}
           onMapClick={handleMapClick}
         />
       </div>
+
+      <MapLegend />
 
       <PlacesList
         tripId={activeTrip.id}
@@ -186,6 +202,15 @@ export function PlacesRoute(): React.JSX.Element {
         {dialogMode === 'view' && selectedPlace && (
           <PlaceDetail place={selectedPlace} />
         )}
+      </Sheet>
+
+      <Sheet
+        open={viewingAcc !== null}
+        onClose={() => setViewingAcc(null)}
+        side="bottom"
+        title={viewingAcc?.name ?? 'Accommodation'}
+      >
+        {viewingAcc && <AccommodationView accommodation={viewingAcc} />}
       </Sheet>
     </div>
   );

@@ -4,7 +4,7 @@ import type { Trip } from '@/domain/trip';
 import { listAccommodationsByTrip } from '@/features/accommodations/queries';
 import { placesByTrip } from '@/features/places/queries';
 import {
-  PATH_PIN_ACCOMMODATION,
+  PLACE_PIN_ACCOMMODATION,
   PLACE_PIN_VISITED,
   PLACE_PIN_WISHLIST,
 } from '@/features/places/colors';
@@ -18,7 +18,7 @@ export function TripMapPreviewCard({ trip }: { trip: Trip }): React.JSX.Element 
   const markers: StaticMapMarker[] = [];
   for (const a of accommodations) {
     if (a.location) {
-      markers.push({ lat: a.location.lat, lng: a.location.lng, color: PATH_PIN_ACCOMMODATION });
+      markers.push({ lat: a.location.lat, lng: a.location.lng, color: PLACE_PIN_ACCOMMODATION });
     }
   }
   for (const p of places) {
