@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Button, Sheet } from '@/ui/components';
+import { Link } from '@tanstack/react-router';
+import { MapPin, Plus } from 'lucide-react';
+import { Button, EmptyState, Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import { useActiveTrip } from '@/ui/layout/useActiveTrip';
 import type { Place } from '@/domain/place';
@@ -111,7 +113,19 @@ export function PlacesRoute(): React.JSX.Element {
         <header>
           <h2 className="text-lg font-semibold text-on-surface">Trip Map</h2>
         </header>
-        <p className="text-sm text-on-surface-variant">Please set an active trip first in the Trips tab.</p>
+        <EmptyState
+          icon={<MapPin className="h-7 w-7" />}
+          title="No active trip"
+          description="Choose a trip to map your stays and the places you want to explore."
+          action={
+            <Link
+              to="/trips"
+              className="inline-flex items-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-soft transition-opacity hover:opacity-90"
+            >
+              Go to Trips
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -124,7 +138,10 @@ export function PlacesRoute(): React.JSX.Element {
           <p className="text-xs text-on-surface-variant">Map your wishlist, visited spots, and stays for {activeTrip.name}.</p>
         </div>
         <div>
-          <Button onClick={openCreate} aria-label="New place">+</Button>
+          <Button onClick={openCreate} aria-label="New place">
+            <Plus className="h-4 w-4" />
+            Add
+          </Button>
         </div>
       </div>
 
