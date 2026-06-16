@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/app/auth-store';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, RefreshCw } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 
 /**
@@ -52,6 +52,13 @@ export function AccountMenu(): React.JSX.Element | null {
           </div>
 
           <div className="p-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-variant transition-colors"
+            >
+              <RefreshCw className="h-4 w-4 shrink-0" />
+              Refresh
+            </button>
             <button
               onClick={handleLogout}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
