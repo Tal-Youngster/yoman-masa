@@ -77,11 +77,14 @@ export function SideNav(): React.JSX.Element {
             <Link
               to={tab.to}
               activeOptions={{ exact: tab.to === '/' }}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-on-surface-variant transition-colors hover:bg-surface-container-high"
+              // Colour lives in inactive/active props, not the base class, so the
+              // active `text-primary` can't lose a CSS-order tie to a base colour.
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface-container-high"
               activeProps={{
                 'aria-current': 'page',
                 className: 'bg-surface-container-highest text-primary font-medium',
               }}
+              inactiveProps={{ className: 'text-on-surface-variant' }}
             >
               <TabIcon name={tab.icon} />
               <span>{tab.label}</span>
