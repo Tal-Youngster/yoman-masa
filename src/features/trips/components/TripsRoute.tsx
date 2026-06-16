@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 
-import { Sheet } from '@/ui/components';
+import { Button, Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
+import { useActiveTrip } from '@/ui/layout/useActiveTrip';
 import { useValidateTravelFolder } from '@/app/use-validate-travel-folder';
 import type { Trip } from '@/domain/trip';
 
@@ -17,6 +19,8 @@ import { TripsList } from './TripsList';
  */
 export function TripsRoute(): React.JSX.Element {
   const { tripsAdmin } = useAppServices();
+  const { setActiveTrip } = useActiveTrip();
+  const navigate = useNavigate();
 
   // Validates the persisted folder id (see useValidateTravelFolder); the setter
   // lets a fresh pick reveal the list without re-reading.
@@ -32,6 +36,13 @@ export function TripsRoute(): React.JSX.Element {
   function openEdit(trip: Trip): void {
     setEditing(trip);
     setSheetOpen(true);
+  }
+
+  // Tapping a trip row makes it the active trip and drops the user into the
+  // trip-scoped Overview — the Trips tab is the "switch context" master.
+  async function handleEnter(trip: Trip): Promise<void> {
+    await setActiveTrip(trip.id);
+    await navigate({ to: '/' });
   }
 
   async function handleDelete(trip: Trip): Promise<void> {
@@ -80,26 +91,28 @@ export function TripsRoute(): React.JSX.Element {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold text-on-surface">Trips</h2>
-          <p className="text-xs text-on-surface-variant">Plan and switch between trips.</p>
+          <p className="text-xs text-on-surface-variant">Tap a trip to open it — or start planning a new one.</p>
         </div>
         <div className="flex items-center gap-1">
-
-          <button
-            type="button"
+          <Button
             onClick={openCreate}
             aria-label="New trip"
             title="New trip"
             data-testid="trips-new"
-            className="rounded-md p-2 text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
           >
             <Plus className="h-4 w-4" />
-          </button>
+            New trip
+          </Button>
         </div>
       </div>
 
 
 
-      <TripsList onEdit={openEdit} onDelete={handleDelete} />
+      <TripsList
+        onEnter={(t) => void handleEnter(t)}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+      />
 
       <Sheet
         open={sheetOpen}

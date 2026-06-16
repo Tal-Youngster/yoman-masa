@@ -1,14 +1,20 @@
 import { useState, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Button, Sheet } from '@/ui/components';
+import { Link } from '@tanstack/react-router';
+import { MapPin, Plus } from 'lucide-react';
+import { Button, EmptyState, Sheet } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import { useActiveTrip } from '@/ui/layout/useActiveTrip';
 import type { Place } from '@/domain/place';
+import type { Accommodation } from '@/domain/accommodation';
+import { listAccommodationsByTrip } from '@/features/accommodations/queries';
+import { AccommodationView } from '@/features/accommodations/components/AccommodationView';
 
 import { PlaceForm } from './Form';
 import { PlacesList } from './List';
 import { PlaceDetail } from './Detail';
 import { PlacesMap } from './PlacesMap';
+import { MapLegend } from './MapLegend';
 import { placeFilePath } from '../paths';
 import { deletePlace, placesByTrip } from '../queries';
 import { ulid } from 'ulid';
@@ -22,11 +28,19 @@ export function PlacesRoute(): React.JSX.Element {
 
   const [dialogMode, setDialogMode] = useState<DialogMode>('none');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [viewingAcc, setViewingAcc] = useState<Accommodation | null>(null);
 
   // Shared with PlacesMap and PlaceForm. Dexie-subscribed so any write — local
   // or inbound from Drive — flows through without manual invalidation.
   const places = useLiveQuery(
     () => (activeTrip ? placesByTrip(activeTrip.id) : Promise.resolve([])),
+    [activeTrip?.id],
+  ) ?? [];
+
+  // Accommodations are surfaced on the same map (read-only) so the Trip Map is
+  // a single picture of "where I'm staying" + "where I want to go".
+  const accommodations = useLiveQuery(
+    () => (activeTrip ? listAccommodationsByTrip(activeTrip.id) : Promise.resolve([])),
     [activeTrip?.id],
   ) ?? [];
 
@@ -97,9 +111,21 @@ export function PlacesRoute(): React.JSX.Element {
     return (
       <div className="flex flex-col gap-4">
         <header>
-          <h2 className="text-lg font-semibold text-on-surface">Places</h2>
+          <h2 className="text-lg font-semibold text-on-surface">Trip Map</h2>
         </header>
-        <p className="text-sm text-on-surface-variant">Please set an active trip first in the Trips tab.</p>
+        <EmptyState
+          icon={<MapPin className="h-7 w-7" />}
+          title="No active trip"
+          description="Choose a trip to map your stays and the places you want to explore."
+          action={
+            <Link
+              to="/trips"
+              className="inline-flex items-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-soft transition-opacity hover:opacity-90"
+            >
+              Go to Trips
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -108,22 +134,29 @@ export function PlacesRoute(): React.JSX.Element {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-on-surface">Places</h2>
-          <p className="text-xs text-on-surface-variant">Manage your wishlist and visited spots for {activeTrip.name}.</p>
+          <h2 className="text-lg font-semibold text-on-surface">Trip Map</h2>
+          <p className="text-xs text-on-surface-variant">Map your wishlist, visited spots, and stays for {activeTrip.name}.</p>
         </div>
         <div>
-          <Button onClick={openCreate} aria-label="New place">+</Button>
+          <Button onClick={openCreate} aria-label="New place">
+            <Plus className="h-4 w-4" />
+            Add
+          </Button>
         </div>
       </div>
 
       <div className="h-64 sm:h-96 w-full rounded-xl overflow-hidden border border-outline-variant shadow-sm relative">
         <PlacesMap
           places={places}
+          accommodations={accommodations}
           selected={selectedPlace}
           onMarkerClick={openView}
+          onAccommodationClick={setViewingAcc}
           onMapClick={handleMapClick}
         />
       </div>
+
+      <MapLegend />
 
       <PlacesList
         tripId={activeTrip.id}
@@ -186,6 +219,15 @@ export function PlacesRoute(): React.JSX.Element {
         {dialogMode === 'view' && selectedPlace && (
           <PlaceDetail place={selectedPlace} />
         )}
+      </Sheet>
+
+      <Sheet
+        open={viewingAcc !== null}
+        onClose={() => setViewingAcc(null)}
+        side="bottom"
+        title={viewingAcc?.name ?? 'Accommodation'}
+      >
+        {viewingAcc && <AccommodationView accommodation={viewingAcc} />}
       </Sheet>
     </div>
   );

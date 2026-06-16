@@ -16,8 +16,10 @@ export function TopBar(): React.JSX.Element {
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex items-center gap-2">
-        <Plane className="w-5 h-5 text-primary shrink-0" aria-hidden="true" />
-        <h1 className="text-sm font-semibold text-on-surface">Travel Journal</h1>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+          <Plane className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+        </span>
+        <h1 className="text-base font-semibold text-on-surface sm:text-lg">Travel Journal</h1>
       </div>
       <div className="flex items-center gap-3">
         {!hideSwitcher && <TripSwitcher />}

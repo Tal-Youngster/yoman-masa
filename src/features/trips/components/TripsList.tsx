@@ -25,13 +25,15 @@ const FILTER_LABELS: Record<Filter, string> = {
 };
 
 export interface TripsListProps {
+  /** Called when the user taps a trip row to enter it (activate + open Overview). */
+  onEnter: (trip: Trip) => void;
   /** Called when the user clicks the "Edit" affordance. */
   onEdit: (trip: Trip) => void;
   /** Called when the user confirms deletion. */
   onDelete: (trip: Trip) => Promise<void> | void;
 }
 
-export function TripsList({ onEdit, onDelete }: TripsListProps): React.JSX.Element {
+export function TripsList({ onEnter, onEdit, onDelete }: TripsListProps): React.JSX.Element {
   // useLiveQuery re-runs whenever the `trips` table changes — covers both local
   // mutations and the inbound Drive puller writing new rows. `undefined` while
   // the first query is pending; `Trip[]` afterwards.
@@ -96,7 +98,12 @@ export function TripsList({ onEdit, onDelete }: TripsListProps): React.JSX.Eleme
             const codes = trip.country_codes ?? [];
             return (
               <li key={trip.id} data-testid={`trips-row-${trip.id}`}>
-                <Card>
+                <Card
+                  className="cursor-pointer transition-colors hover:bg-surface-container-high"
+                  onClick={() => onEnter(trip)}
+                  role="button"
+                  aria-label={`Open ${trip.name}`}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex flex-col gap-1 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -126,7 +133,10 @@ export function TripsList({ onEdit, onDelete }: TripsListProps): React.JSX.Eleme
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
-                        onClick={() => onEdit(trip)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(trip);
+                        }}
                         aria-label={`Edit ${trip.name}`}
                         title="Edit"
                         data-testid={`trips-edit-${trip.id}`}
@@ -136,7 +146,10 @@ export function TripsList({ onEdit, onDelete }: TripsListProps): React.JSX.Eleme
                       </button>
                       <button
                         type="button"
-                        onClick={() => setPendingDelete(trip)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPendingDelete(trip);
+                        }}
                         aria-label={`Delete ${trip.name}`}
                         title="Delete"
                         data-testid={`trips-delete-${trip.id}`}

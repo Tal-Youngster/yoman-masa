@@ -4,6 +4,8 @@ export { Input } from './Input';
 export type { InputProps } from './Input';
 export { Card } from './Card';
 export type { CardProps } from './Card';
+export { EmptyState } from './EmptyState';
+export type { EmptyStateProps } from './EmptyState';
 export { Sheet } from './Sheet';
 export type { SheetProps, SheetSide } from './Sheet';
 export { CurrencyPicker } from './CurrencyPicker';

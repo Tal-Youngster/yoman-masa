@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore } from '@/app/auth-store';
-import { PlaneTakeoff, ShieldAlert } from 'lucide-react';
+import { PlaneTakeoff, ShieldAlert, MapPinned, BedDouble, Wallet } from 'lucide-react';
 
 export function LoginPage(): React.JSX.Element {
   const login = useAuthStore((state) => state.login);
@@ -53,43 +53,60 @@ export function LoginPage(): React.JSX.Element {
   }, [login]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-surface p-4 sm:p-8">
-      <div className="w-full max-w-md overflow-hidden rounded-3xl bg-surface-container p-8 shadow-elevated-lg border border-outline-variant text-on-surface transition-all">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 via-surface to-surface-container-low p-4 sm:p-8">
+      {/* Soft ambient glow behind the card. */}
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" aria-hidden />
+
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-outline-variant bg-surface-container/90 p-8 text-on-surface shadow-elevated-lg backdrop-blur">
         <div className="flex flex-col items-center text-center">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 shadow-soft">
             <PlaneTakeoff className="h-10 w-10 text-primary" />
           </div>
-          <h1 className="mb-2 text-headline-md tracking-tight">
-            Travel Journal
-          </h1>
-          <p className="mb-8 text-sm font-medium text-on-surface-variant">
-            Your personal travel companion. Please sign in to securely access your vault.
+          <h1 className="mb-2 text-headline-md tracking-tight">Travel Journal</h1>
+          <p className="mb-6 text-sm font-medium text-on-surface-variant">
+            Your offline-first companion for the whole journey — plan it, map it, and keep every
+            booking in your own vault.
           </p>
 
+          <ul className="mb-8 grid w-full grid-cols-3 gap-2 text-on-surface-variant">
+            <Highlight icon={<MapPinned className="h-5 w-5" />} label="Map your trip" />
+            <Highlight icon={<BedDouble className="h-5 w-5" />} label="Track stays" />
+            <Highlight icon={<Wallet className="h-5 w-5" />} label="Watch spend" />
+          </ul>
+
           <div
-            className="flex flex-col items-center justify-center min-h-[50px] w-full mb-2 max-w-[280px]"
+            className="mb-2 flex min-h-[50px] w-full max-w-[280px] flex-col items-center justify-center"
             ref={buttonContainerRef}
           >
             {/* GIS Button will render here */}
             {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
-              <div className="text-sm text-error p-3 font-semibold">
+              <div className="p-3 text-sm font-semibold text-error">
                 System not configured: Missing Google Client ID.
               </div>
             )}
           </div>
 
           {error && (
-            <div className="mt-6 flex items-start space-x-3 rounded-2xl bg-error-container p-4 border border-error/20 text-left w-full shadow-inner animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <ShieldAlert className="h-5 w-5 text-on-error-container shrink-0 mt-0.5" />
-              <p className="text-sm text-on-error-container font-medium">{error}</p>
+            <div className="mt-6 flex w-full items-start space-x-3 rounded-2xl border border-error/20 bg-error-container p-4 text-left shadow-inner animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-on-error-container" />
+              <p className="text-sm font-medium text-on-error-container">{error}</p>
             </div>
           )}
         </div>
       </div>
-      
-      <div className="absolute bottom-8 text-on-surface-variant/50 text-xs font-medium tracking-wide uppercase">
+
+      <div className="absolute bottom-8 text-xs font-medium uppercase tracking-wide text-on-surface-variant/50">
         Secure Access Only
       </div>
     </div>
+  );
+}
+
+function Highlight({ icon, label }: { icon: React.ReactNode; label: string }): React.JSX.Element {
+  return (
+    <li className="flex flex-col items-center gap-1.5 rounded-xl bg-surface-container-low/70 px-2 py-3">
+      <span className="text-primary">{icon}</span>
+      <span className="text-[11px] font-medium leading-tight text-on-surface-variant">{label}</span>
+    </li>
   );
 }

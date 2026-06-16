@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AppServicesProvider, type AppServices, type TripsAdminService } from '@/app/context';
+import { ActiveTripProvider } from '@/ui/layout/useActiveTrip';
 import { createMemoryKVStore } from '@/app/kv-store';
 import { createMockTripsStore } from '@/app/trips-store';
 import { asFileId, DriveApiError } from '@/sync/drive';
@@ -20,6 +21,16 @@ import { deleteDatabase, makeTestDb } from '@/lib/storage/test-helpers';
 
 import * as tripsQueries from '../queries';
 import { TripsRoute } from './TripsRoute';
+
+// TripsRoute now calls useNavigate() to drop into the Overview after a trip is
+// entered. These tests render the route outside a RouterProvider, so stub the
+// navigation hook — navigation itself is covered by the Shell integration test.
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual =
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- importOriginal's generic needs the module type to type the spread below
+    await importOriginal<typeof import('@tanstack/react-router')>();
+  return { ...actual, useNavigate: () => () => Promise.resolve() };
+});
 
 // Capture the un-spied implementation at module load. Each test's spy delegates
 // to this — re-reading `tripsQueries.listTripsAll` inside renderRoute would
@@ -162,7 +173,9 @@ async function renderRoute(opts: HarnessOptions = {}): Promise<{
   const result = render(
     <QueryClientProvider client={qc}>
       <AppServicesProvider services={services}>
-        <TripsRoute />
+        <ActiveTripProvider>
+          <TripsRoute />
+        </ActiveTripProvider>
       </AppServicesProvider>
     </QueryClientProvider>,
   );
