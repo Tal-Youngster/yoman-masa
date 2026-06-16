@@ -47,8 +47,13 @@ export function BottomNav(): React.JSX.Element {
               <Link
                 to={tab.to}
                 activeOptions={{ exact: tab.to === '/' }}
-                className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] text-on-surface-variant transition-colors"
+                // Keep the colour out of the base class: TanStack only *appends*
+                // activeProps, so a base `text-*` would collide with the active
+                // `text-primary` and the winner would come down to CSS order, not
+                // the active state. Split inactive/active colours instead.
+                className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] transition-colors"
                 activeProps={{ 'aria-current': 'page', className: 'text-primary' }}
+                inactiveProps={{ className: 'text-on-surface-variant' }}
               >
                 <TabIcon name={tab.icon} className="w-5 h-5 shrink-0" />
                 <span>{tab.shortLabel}</span>
