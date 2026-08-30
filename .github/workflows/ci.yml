@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Lets a secret rotation be picked up without an empty commit: VITE_* are
+  # baked into the bundle at build time, so new secret values only reach
+  # production via a fresh build + deploy.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -43,7 +47,7 @@ jobs:
 
   deploy:
     name: deploy to Cloudflare Workers
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -62,14 +66,16 @@ jobs:
 
       # VITE_* are baked into the bundle here, so the real values must be present
       # at build time. Store them as GitHub repo secrets (Settings → Secrets and
-      # variables → Actions). Missing optional keys just disable that feature.
+      # variables → Actions) — repo *variables* are not read here. Missing
+      # optional keys just disable that feature or fall back to a default.
       - name: Build
         run: npm run build
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           VITE_GOOGLE_API_KEY: ${{ secrets.VITE_GOOGLE_API_KEY }}
-          VITE_PROTOMAPS_API_KEY: ${{ secrets.VITE_PROTOMAPS_API_KEY }}
+          VITE_GOOGLE_MAP_ID: ${{ secrets.VITE_GOOGLE_MAP_ID }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_GEMINI_MODEL: ${{ secrets.VITE_GEMINI_MODEL }}
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
