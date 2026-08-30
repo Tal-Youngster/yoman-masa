@@ -19,7 +19,6 @@ import { db } from './lib/storage';
 import { registerTripReconcilers } from './features/trips/register';
 import { registerAccommodationReconcilers } from './features/accommodations/register';
 import { registerPlaceReconcilers } from './features/places/register';
-import { registerExpenseReconcilers, createExpensesAdmin } from './features/expenses';
 import { registerTaskReconcilers, createTasksAdmin } from './features/tasks';
 import { registerShoppingReconcilers, createShoppingAdmin } from './features/shopping';
 import './index.css';
@@ -27,7 +26,6 @@ import './index.css';
 registerTripReconcilers();
 registerAccommodationReconcilers();
 registerPlaceReconcilers();
-registerExpenseReconcilers();
 registerTaskReconcilers();
 registerShoppingReconcilers();
 
@@ -156,16 +154,6 @@ const tripsAdmin = createTripsAdmin({
   },
 });
 
-const expensesAdmin = createExpensesAdmin({
-  db,
-  writeQueue,
-  travelFolderPath: TRAVEL_PREFIX,
-  today: () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  },
-});
-
 const tasksAdmin = createTasksAdmin({
   db,
   writeQueue,
@@ -205,7 +193,6 @@ const services = {
   kv,
   trips,
   tripsAdmin,
-  expensesAdmin,
   tasksAdmin,
   shoppingAdmin,
   drive,

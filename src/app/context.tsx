@@ -7,7 +7,6 @@ import type { SyncReport } from '@/sync/queue';
 import type { PullReport } from '@/sync/pull';
 import type { AiClient } from '@/lib/ai/client';
 import type { GmailClient } from '@/lib/gmail';
-import type { ExpensesAdminService } from '@/features/expenses';
 import type { TasksAdminService } from '@/features/tasks';
 import type { ShoppingAdminService } from '@/features/shopping';
 
@@ -61,8 +60,6 @@ export interface AppServices {
   ai?: AiClient;
   /** Read-only Gmail client (ADR-0016). Present only with real Drive auth. */
   gmail?: GmailClient;
-  /** Expenses mutation surface (S7). Optional so tests can stub. */
-  expensesAdmin?: ExpensesAdminService;
   /** Tasks mutation surface (S10). Optional so tests can stub. */
   tasksAdmin?: TasksAdminService;
   /** Shopping mutation surface (S11). Optional so tests can stub. */

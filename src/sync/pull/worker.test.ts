@@ -383,7 +383,7 @@ describe('pullAll — incremental change-feed pass', () => {
 });
 
 /** A multi-entity stub modelling a ledger file. One file → N entities, just
- *  like Expenses/<yyyy-mm>.md or Tasks.md. Persisted into the `trips` table
+ *  like Tasks.md or Shopping.md. Persisted into the `trips` table
  *  for the same reasons as `makeReconciler` above — the table is just storage,
  *  not a Trip-shape assertion. */
 function makeLedgerReconciler(): InboundReconciler<TestEntity> {

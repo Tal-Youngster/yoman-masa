@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { newTrip } from '@/domain/trip';
 import { newAccommodation } from '@/domain/accommodation';
 import { newPlace } from '@/domain/place';
-import { newExpense } from '@/domain/expense';
 import { newTask } from '@/domain/task';
 import { newShoppingItem } from '@/domain/shopping-item';
 import { newArticle } from '@/domain/article';
@@ -20,8 +19,6 @@ import {
   deleteTrip,
   drainNext,
   enqueueWrite,
-  expensesByTrip,
-  expensesByTripAndMonth,
   generalArticles,
   generalShoppingItems,
   generalTasks,
@@ -40,7 +37,6 @@ import {
   tasksByTrip,
   upsertAccommodation,
   upsertArticle,
-  upsertExpense,
   upsertFileMeta,
   upsertPlace,
   upsertShoppingItem,
@@ -172,55 +168,6 @@ describe('Places', () => {
   });
 });
 
-describe('Expenses + month range query', () => {
-  it('filters by trip and by month using the compound index', async () => {
-    const trip = makeTrip();
-    await upsertTrip(trip, db);
-
-    const may1 = newExpense({
-      trip_id: trip.id,
-      date: isoDate('2026-05-03'),
-      amount: 10,
-      currency: currency('USD'),
-      category: 'food',
-    });
-    const may2 = newExpense({
-      trip_id: trip.id,
-      date: isoDate('2026-05-30'),
-      amount: 20,
-      currency: currency('USD'),
-      category: 'transport',
-    });
-    const june = newExpense({
-      trip_id: trip.id,
-      date: isoDate('2026-06-01'),
-      amount: 30,
-      currency: currency('USD'),
-      category: 'food',
-    });
-    await upsertExpense(may1, db);
-    await upsertExpense(may2, db);
-    await upsertExpense(june, db);
-
-    expect((await expensesByTrip(trip.id, db)).map((e) => e.id).sort()).toEqual(
-      [may1.id, may2.id, june.id].sort(),
-    );
-
-    const inMay = await expensesByTripAndMonth(trip.id, '2026-05', db);
-    expect(inMay.map((e) => e.id).sort()).toEqual([may1.id, may2.id].sort());
-
-    const inJune = await expensesByTripAndMonth(trip.id, '2026-06', db);
-    expect(inJune.map((e) => e.id)).toEqual([june.id]);
-  });
-
-  it('rejects malformed yyyy_mm', async () => {
-    const trip = makeTrip();
-    await upsertTrip(trip, db);
-    await expect(expensesByTripAndMonth(trip.id, '2026-13', db)).rejects.toThrow(/bad yyyy_mm/);
-    await expect(expensesByTripAndMonth(trip.id, '202605', db)).rejects.toThrow(/bad yyyy_mm/);
-  });
-});
-
 describe('Cross-trip nullable trip_id (tasks / shopping / articles)', () => {
   it('tasks: trip vs General isolation', async () => {
     const trip = makeTrip();
@@ -325,13 +272,13 @@ describe('write_queue', () => {
     await enqueueWrite(
       {
         id: '01HQ2',
-        entity_type: 'expense',
-        entity_id: 'exp_test1',
+        entity_type: 'shopping_item',
+        entity_id: 'shp_test1',
         op: 'update',
         payload: { bar: 2 },
         base_revision: 'rev-7',
         file_id: 'drive-file-7',
-        resolved_path: 'MyVault/Travel/Trips/test1/Expenses/2026-05.md',
+        resolved_path: 'MyVault/Travel/Trips/test1/Shopping.md',
       },
       db,
     );

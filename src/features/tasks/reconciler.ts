@@ -1,7 +1,7 @@
 /**
  * Tasks reconciler — line-level patching via S1 primitives.
  *
- * Like expenses (and unlike file-per-entity trips/accommodations), one task is
+ * Unlike the file-per-entity trips/accommodations, one task is
  * one line in a per-trip (or General) `Tasks.md`. `applyEdit` finds the line by
  * its `^t-<ulid>` block ref and inserts/replaces/removes it without disturbing
  * the rest of the file — headings, notes, and other tasks the user keeps there.

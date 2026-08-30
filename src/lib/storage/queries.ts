@@ -1,7 +1,6 @@
 import type { Trip } from '@/domain/trip';
 import type { Accommodation, AccommodationStatus } from '@/domain/accommodation';
 import type { Place } from '@/domain/place';
-import type { Expense } from '@/domain/expense';
 import type { Task } from '@/domain/task';
 import type { ShoppingItem } from '@/domain/shopping-item';
 import type { Article } from '@/domain/article';
@@ -109,45 +108,6 @@ export async function visitedPlacesByTrip(tripId: TripId, db?: DB): Promise<Plac
     .places.where('trip_id')
     .equals(tripId)
     .filter((p) => p.visited)
-    .toArray();
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Expenses
-// ────────────────────────────────────────────────────────────────────────────
-
-export async function upsertExpense(e: Expense, db?: DB): Promise<void> {
-  await dbHandle(db).expenses.put(stripUndefined(e));
-}
-
-export async function getExpense(id: Expense['id'], db?: DB): Promise<Expense | undefined> {
-  return dbHandle(db).expenses.get(id);
-}
-
-export async function deleteExpense(id: Expense['id'], db?: DB): Promise<void> {
-  await dbHandle(db).expenses.delete(id);
-}
-
-export async function expensesByTrip(tripId: TripId, db?: DB): Promise<Expense[]> {
-  return dbHandle(db).expenses.where('trip_id').equals(tripId).toArray();
-}
-
-/**
- * `yyyy_mm` is e.g. `"2026-05"`. We range-scan the `[trip_id+date]` compound index
- * from `[tripId, "2026-05-00"]` to `[tripId, "2026-05-99"]` — string lex order matches
- * date order for fixed-width ISO dates.
- */
-export async function expensesByTripAndMonth(
-  tripId: TripId,
-  yyyy_mm: string,
-  db?: DB,
-): Promise<Expense[]> {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(yyyy_mm)) {
-    throw new Error(`expensesByTripAndMonth: bad yyyy_mm '${yyyy_mm}'`);
-  }
-  return dbHandle(db)
-    .expenses.where('[trip_id+date]')
-    .between([tripId, `${yyyy_mm}-00`], [tripId, `${yyyy_mm}-99`])
     .toArray();
 }
 

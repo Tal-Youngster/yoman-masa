@@ -21,10 +21,6 @@ export const PlaceId = branded('plc', 'PlaceId');
 export type PlaceId = z.infer<typeof PlaceId>;
 export const newPlaceId = (): PlaceId => PlaceId.parse(`plc_${ulid()}`);
 
-export const ExpenseId = branded('exp', 'ExpenseId');
-export type ExpenseId = z.infer<typeof ExpenseId>;
-export const newExpenseId = (): ExpenseId => ExpenseId.parse(`exp_${ulid()}`);
-
 export const TaskId = branded('tsk', 'TaskId');
 export type TaskId = z.infer<typeof TaskId>;
 export const newTaskId = (): TaskId => TaskId.parse(`tsk_${ulid()}`);

@@ -3,7 +3,6 @@ import Dexie, { type Table } from 'dexie';
 import type { Trip } from '@/domain/trip';
 import type { Accommodation } from '@/domain/accommodation';
 import type { Place } from '@/domain/place';
-import type { Expense } from '@/domain/expense';
 import type { Task } from '@/domain/task';
 import type { ShoppingItem } from '@/domain/shopping-item';
 import type { Article } from '@/domain/article';
@@ -20,7 +19,6 @@ export class TravelDB extends Dexie {
   trips!: Table<Trip, Trip['id']>;
   accommodations!: Table<Accommodation, Accommodation['id']>;
   places!: Table<Place, Place['id']>;
-  expenses!: Table<Expense, Expense['id']>;
   tasks!: Table<Task, Task['id']>;
   shopping_items!: Table<ShoppingItem, ShoppingItem['id']>;
   articles!: Table<Article, Article['id']>;
@@ -89,7 +87,7 @@ export function defineSchema(db: Dexie): void {
 
   // v4 — `file_meta.last_entity_ids: string[]`. Tracks the set of entity ids
   // a file was last seen to contain so the inbound worker can compute
-  // per-row deletes for ledger files (Expenses, Tasks). See ADR-0014
+  // per-row deletes for ledger files (Tasks, Shopping). See ADR-0014
   // addendum (2026-06-06).
   //
   // The column isn't indexed — readers fetch the full row and iterate the
@@ -121,6 +119,22 @@ export function defineSchema(db: Dexie): void {
     await tx.table('kv').delete('drive_changes_page_token');
     await tx.table('kv').put({ key: '__schema_v4__', value: 'true' });
   });
+
+  // v5 — drop the `expenses` store (ADR-0018 removes the expenses feature).
+  // `null` is Dexie's "delete this table" marker. Rows go with it; the vault's
+  // `Expenses/<yyyy-mm>.md` files are left untouched for Obsidian.
+  //
+  // Queued expense writes and their file_meta rows are purged too: no
+  // reconciler is registered for them any more, so leaving them would only
+  // produce dead-letters on the next drain.
+  db.version(5)
+    .stores({ expenses: null })
+    .upgrade(async (tx) => {
+      await tx.table('write_queue').where('entity_type').equals('expense').delete();
+      await tx.table('file_meta').where('entity_type').equals('expense').delete();
+      await tx.table('kv').delete('rates_snapshot');
+      await tx.table('kv').put({ key: '__schema_v5__', value: 'true' });
+    });
 }
 
 /** Shared singleton for the running app. Tests construct their own per-test instance. */

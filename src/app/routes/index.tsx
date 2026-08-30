@@ -9,7 +9,6 @@ export const TripsRoute = TripsRouteImpl;
 
 export { AccommodationsRoute } from '@/features/accommodations/components';
 export { PlacesRoute } from '@/features/places/components';
-export { ExpensesRoute } from '@/features/expenses/components';
 export { TasksRoute } from '@/features/tasks/components';
 export { ShoppingRoute } from '@/features/shopping/components';
 

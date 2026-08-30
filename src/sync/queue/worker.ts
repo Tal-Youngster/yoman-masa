@@ -100,7 +100,7 @@ export async function processItem(
     }
 
     // The file exists (we have a fileId). We must update it, even if item.op was 'create'
-    // (which is common for ledger appends like expenses).
+    // (which is common for ledger appends like tasks or shopping).
     const itemToUpdate = { ...item, fileId };
     const result = await reconcileUpdate(opts.drive, reconciler, itemToUpdate, opts.reconcileOptions ?? {});
     return { kind: 'applied', newRevision: result.newRevision, fileId: result.fileId };

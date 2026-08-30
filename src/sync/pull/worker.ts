@@ -241,7 +241,7 @@ async function handleRemoval(
     return;
   }
 
-  // Iterate the full last-seen entity set so ledger files (Expenses,
+  // Iterate the full last-seen entity set so ledger files (Tasks,
   // Tasks) propagate a whole-file delete to every row they contained.
   // Fall back to `[entity_id]` for any pre-v4 file_meta that slipped
   // through migration (the field is declared required, but a row

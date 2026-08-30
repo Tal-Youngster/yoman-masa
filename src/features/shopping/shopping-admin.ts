@@ -142,5 +142,5 @@ export function createShoppingAdmin(deps: ShoppingAdminDeps): ShoppingAdminServi
 }
 
 // `Currency` is re-exported so callers building an `estimated_cost` Money have
-// a single import point. (Mirrors what expenses does for ergonomic forms.)
+// a single import point.
 export { Currency };

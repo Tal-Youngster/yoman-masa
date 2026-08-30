@@ -79,11 +79,11 @@ describe('Shell', () => {
     const sideNav = navs[0];
     if (!sideNav) throw new Error('expected primary nav');
 
-    const expenses = within(sideNav).getByRole('link', { name: 'Expenses' });
-    await user.click(expenses);
+    const tasks = within(sideNav).getByRole('link', { name: 'Tasks' });
+    await user.click(tasks);
 
     await waitFor(() => {
-      expect(within(sideNav).getByRole('link', { name: 'Expenses' })).toHaveAttribute(
+      expect(within(sideNav).getByRole('link', { name: 'Tasks' })).toHaveAttribute(
         'aria-current',
         'page',
       );

@@ -3,7 +3,6 @@ export interface TabDef {
   to:
     | '/'
     | '/accommodations'
-    | '/expenses'
     | '/places'
     | '/tasks'
     | '/shopping'
@@ -35,7 +34,6 @@ export const TABS: readonly TabDef[] = [
   { to: '/', label: 'Trip Overview', shortLabel: 'Overview', icon: 'dashboard' },
   { to: '/places', label: 'Trip Map', shortLabel: 'Map', icon: 'places' },
   { to: '/accommodations', label: 'Accommodations', shortLabel: 'Stay', icon: 'accommodations' },
-  { to: '/expenses', label: 'Expenses', shortLabel: 'Money', icon: 'expenses' },
   { to: '/tasks', label: 'Tasks', shortLabel: 'Tasks', icon: 'tasks' },
   { to: '/shopping', label: 'Shopping', shortLabel: 'Shop', icon: 'shopping' },
   { to: '/articles', label: 'Articles', shortLabel: 'Read', icon: 'articles' },
