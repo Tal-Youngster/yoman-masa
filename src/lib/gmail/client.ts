@@ -46,9 +46,21 @@ export class RealGmailClient implements GmailClient {
       opts.fetchImpl ?? (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : fallback);
   }
 
-  async listRecentInbox(max = DEFAULT_MAX): Promise<readonly GmailMessageMeta[]> {
+  listRecentInbox(max = DEFAULT_MAX): Promise<readonly GmailMessageMeta[]> {
+    return this.list('labelIds=INBOX', max);
+  }
+
+  searchMessages(query: string, max = DEFAULT_MAX): Promise<readonly GmailMessageMeta[]> {
+    const q = query.trim();
+    if (!q) return this.listRecentInbox(max);
+    // No `labelIds` and no `includeSpamTrash`: Gmail then searches all mail
+    // except spam/trash, which is what "search my mailbox" should mean here.
+    return this.list(`q=${encodeURIComponent(q)}`, max);
+  }
+
+  private async list(filter: string, max: number): Promise<readonly GmailMessageMeta[]> {
     const list = await this.api<{ messages?: { id: string }[] }>(
-      `${API}/messages?labelIds=INBOX&maxResults=${encodeURIComponent(String(max))}`,
+      `${API}/messages?${filter}&maxResults=${encodeURIComponent(String(max))}`,
     );
     const ids = (list.messages ?? []).map((m) => m.id);
     // One metadata `get` per row. Lazy on body — that's fetched on tap.
