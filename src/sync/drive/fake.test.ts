@@ -122,7 +122,11 @@ describe('FakeDrive', () => {
     const batch = await drive.getChanges(token0);
     expect(batch.changes.length).toBe(1);
     expect(batch.changes[0].removed).toBe(false);
-    const empty = await drive.getChanges(batch.nextPageToken);
+    // Single short page => caught up, so Drive hands back newStartPageToken
+    // (not nextPageToken). That distinction is what lets the cursor advance.
+    expect(batch.nextPageToken).toBeNull();
+    expect(batch.newStartPageToken).not.toBeNull();
+    const empty = await drive.getChanges(batch.newStartPageToken!);
     expect(empty.changes.length).toBe(0);
   });
 
