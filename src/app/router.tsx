@@ -10,7 +10,6 @@ import {
   AccommodationsRoute,
   ArticlesRoute,
   DashboardRoute,
-  ExpensesRoute,
   PlacesRoute,
   ShoppingRoute,
   TasksRoute,
@@ -57,11 +56,6 @@ const accommodationsRoute = createRoute({
   path: '/accommodations',
   component: AccommodationsRoute,
 });
-const expensesRoute = createRoute({
-  getParentRoute: () => appRoute,
-  path: '/expenses',
-  component: ExpensesRoute,
-});
 const placesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/places',
@@ -89,7 +83,6 @@ const routeTree = rootRoute.addChildren([
     dashboardRoute,
     tripsRoute,
     accommodationsRoute,
-    expensesRoute,
     placesRoute,
     tasksRoute,
     shoppingRoute,

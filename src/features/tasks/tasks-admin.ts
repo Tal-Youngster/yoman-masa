@@ -6,7 +6,7 @@
  *  2. Enqueues a line-level write against the scope's `Tasks.md` file.
  *
  * A "scope" is either a trip (per-trip `Tasks.md`) or `null`/`null` for the
- * cross-trip General list. Like expenses, we enqueue with `fileId`/`baseRevision`
+ * cross-trip General list. We enqueue with `fileId`/`baseRevision`
  * null and let the worker resolve the file by path and reconcile on conflict.
  *
  * Deletes follow the v1 vault convention: the row is removed locally and a

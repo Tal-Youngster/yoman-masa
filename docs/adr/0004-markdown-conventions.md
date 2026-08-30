@@ -64,7 +64,10 @@ Buzzer at gate, code 4421. Linh meets at 14:00.
 - Frontmatter is app-owned. Body is yours; the app never touches it on write.
 - `id` (ULID) is the stable identifier; filename is a human-friendly slug and can be renamed without breaking references.
 
-### Expenses ledger (monthly file)
+### Expenses ledger (monthly file) — historical
+
+> Superseded by ADR-0018: the app no longer reads or writes these files. The
+> format is documented because vaults still contain them.
 
 ```md
 ---

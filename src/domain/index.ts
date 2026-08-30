@@ -4,7 +4,6 @@ export * from './money';
 export * from './trip';
 export * from './accommodation';
 export * from './place';
-export * from './expense';
 export * from './task';
 export * from './shopping-item';
 export * from './article';

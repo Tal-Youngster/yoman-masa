@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   Plane,
   BedDouble,
-  Coins,
   MapPin,
   CheckSquare,
   ShoppingBag,
@@ -26,8 +25,6 @@ export function TabIcon({ name, className }: TabIconProps): React.JSX.Element | 
       return <Plane {...props} />;
     case 'accommodations':
       return <BedDouble {...props} />;
-    case 'expenses':
-      return <Coins {...props} />;
     case 'places':
       return <MapPin {...props} />;
     case 'tasks':

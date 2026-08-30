@@ -19,17 +19,17 @@ import { db } from './lib/storage';
 import { registerTripReconcilers } from './features/trips/register';
 import { registerAccommodationReconcilers } from './features/accommodations/register';
 import { registerPlaceReconcilers } from './features/places/register';
-import { registerExpenseReconcilers, createExpensesAdmin } from './features/expenses';
 import { registerTaskReconcilers, createTasksAdmin } from './features/tasks';
 import { registerShoppingReconcilers, createShoppingAdmin } from './features/shopping';
+import { registerArticleReconcilers, createArticlesAdmin } from './features/articles';
 import './index.css';
 
 registerTripReconcilers();
 registerAccommodationReconcilers();
 registerPlaceReconcilers();
-registerExpenseReconcilers();
 registerTaskReconcilers();
 registerShoppingReconcilers();
+registerArticleReconcilers();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
@@ -156,16 +156,6 @@ const tripsAdmin = createTripsAdmin({
   },
 });
 
-const expensesAdmin = createExpensesAdmin({
-  db,
-  writeQueue,
-  travelFolderPath: TRAVEL_PREFIX,
-  today: () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  },
-});
-
 const tasksAdmin = createTasksAdmin({
   db,
   writeQueue,
@@ -173,6 +163,12 @@ const tasksAdmin = createTasksAdmin({
 });
 
 const shoppingAdmin = createShoppingAdmin({
+  db,
+  writeQueue,
+  travelFolderPath: TRAVEL_PREFIX,
+});
+
+const articlesAdmin = createArticlesAdmin({
   db,
   writeQueue,
   travelFolderPath: TRAVEL_PREFIX,
@@ -205,9 +201,9 @@ const services = {
   kv,
   trips,
   tripsAdmin,
-  expensesAdmin,
   tasksAdmin,
   shoppingAdmin,
+  articlesAdmin,
   drive,
   writeQueue,
   pullDriveInbound,

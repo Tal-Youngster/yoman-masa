@@ -8,7 +8,7 @@ Multi-agent dispatch plan for the Travel Journal app. Each slice is sized to be 
 
 - **S15 — Accommodation from Gmail** (`slice/S15-gmail-accommodation`, ADR-0016). Adds Gmail as a third AI-extraction source for accommodations, alongside the existing URL + screenshot flow. New `src/lib/gmail/` read-only client (`listRecentInbox` / `getMessageText`, real REST + `FakeGmail`, pure MIME decode in `mime.ts`), `gmail.readonly` added to the GIS scope in `main.tsx` (same token authorizes Drive + Gmail), `AiClient.extractData` gains an optional `text` input, and a `GmailPicker` (recent-inbox list) wired into `AiExtractionDialog`. Shared prompt/types extracted to `features/accommodations/ai-extraction.ts`. Body text only — attachments deferred. Gates green; 16 new tests (MIME decode + client auth paths).
 
-Next up: **S9 — Path map** (re-spec'd against Google Maps), still unstarted; see the slice catalog below.
+Next up: nothing queued. S9 (Path map) was removed by ADR-0017; S7 (Expenses) by ADR-0018.
 
 ### Completed
 
@@ -31,7 +31,7 @@ Next up: **S9 — Path map** (re-spec'd against Google Maps), still unstarted; s
 
 - **Phase 3 — Features** (S6, S7, S8, S10 baseline — merged)
   - **S6 — Accommodations + Missing Nights** (PR #6): file-per-accommodation under `Travel/Trips/<slug>/Accommodations/`, parser with body preservation, attachments path, missing-nights dashboard card wired to `computeMissingNights`.
-  - **S7 — Expenses + FX**: monthly ledger files, line-level patching by `^e-<ulid>` block-ref, Frankfurter integration with snapshot conversions per ADR-0008. Later passes added the curated `CurrencyPicker`, home-currency category totals + pie chart, and adopted the picker in `TripForm` and `ExpenseForm`.
+  - **S7 — Expenses + FX**: shipped, then **removed** on 2026-08-30 (ADR-0018). The curated `CurrencyPicker` it introduced survives in `src/ui/components/` and is still used by `TripForm`.
   - **S8 — Wishlist places + map** (PR #7): place CRUD with map view. Originally built on MapLibre + Protomaps PMTiles per ADR-0005. **Superseded mid-feature by S8b (ADR-0013)** — see In-flight above for the Google Maps pivot.
   - **S10 — Tasks baseline** (3 commits direct to `main`): line parser + serializer (Obsidian Tasks emoji syntax per ADR-0004), reconciler registered with the queue worker, queries + `tasksAdmin` service, and the UI (`TasksRoute`, `TasksList`, `TaskForm`, `TasksDashboardCard`). The quick-add UX + ADR-0011 (recurrence) + ADR-0012 (manual order) are the in-flight follow-up PR above.
 
@@ -47,6 +47,8 @@ Next up: **S9 — Path map** (re-spec'd against Google Maps), still unstarted; s
   - **Sync folder prefix fix + Drive config UI move** (`fix/sync-folder-prefix-and-config-ui`). Outbound `resolveParent` was double-counting the `Travel/` WRITE_ALLOWED_PREFIX, writing files at `<picked>/Travel/Trips/<slug>/Trip.md` instead of `<picked>/Trips/<slug>/Trip.md`. Single-device round-trip hid it; the moment a second device pulled, `tripInboundReconciler.matchesPath` (`^Trips/<slug>/Trip\.md$`) rejected the nested paths and trips silently failed to converge. Extracted `resolveParent` into `src/app/resolve-parent.ts` with 9 FakeDrive-backed regression tests. Same PR moves the "Drive Config" card from the profile menu into the `SyncStatus` cloud-icon popover, adds a new `travel_folder_name` KV key captured at pick time so the popover renders the configured folder + status text offline-safe. Existing nested files need a one-time manual move in Drive UI.
   - **S16 — Trip-centric UI/UX refactor** (`slice/S16-nav-overview`, ADR-0017). Lifts Trips out of the flat tab set into a distinct master tab (elevated side-nav block + accented bottom-nav slot); tapping a trip activates it and drops into the Overview. Rebuilds `/` as the trip-scoped **Trip Overview** (hero General card + four tappable tiles: Trip Map static-map preview, missing-nights countdown, tasks, shopping). Relabels Places → **Trip Map** and surfaces accommodations as blue "stay" pins there (tap → read-only `AccommodationView`). Adds Static-Maps thumbnails to accommodation rows via a new `src/lib/maps/static-map.ts`. **Removes the standalone Path map** (S9) — supersedes ADR-0015. Welcoming polish across login, top bar, and empty states (shared `EmptyState`). Gates green; 520 tests. **Action item:** enable the **Maps Static API** on `VITE_GOOGLE_API_KEY` for the thumbnails/preview to render.
 
+  - **S12 — Articles + expenses removal** (`slice/S12-articles-drop-expenses`, ADR-0018). Implements the last Phase-3 slice: `src/features/articles/` with file-per-article notes (`Trips/<slug>/Articles/<slug>.md` and `General/Articles/<slug>.md`), body-as-notes parsing that preserves Obsidian prose and unknown frontmatter, outbound + inbound reconcilers, an `articlesAdmin` service with scope-aware slug-collision handling, and the list/form/detail UI with title-tag-host search, tag chips and place deep-linking. `Article` gains an optional `slug` so a retitle keeps the same file; trip slug derivation moves to a shared `src/lib/slug.ts`. Same branch **removes expenses** (ADR-0018): feature, domain entity, FX modules, `/expenses` tab, and the `expenses` Dexie store (schema v5, which also purges queued expense writes and the rates snapshot). Vault ledger files are left on Drive. Gates green; 519 tests.
+
 ## Phase map
 
 ```
@@ -61,11 +63,11 @@ Phase 2 — Spine (single slice; blocks Phase 3)
 
 Phase 3 — Features (parallel)
   S6  Accommodations + Missing Nights dashboard
-  S7  Expenses + FX
+  S7  Expenses + FX  (removed — ADR-0018)
   S8  Wishlist places + map
   S10 Tasks (vault-backed)
   S11 Shopping list (vault-backed)
-  S12 Articles
+  S12 Articles  (done)
 
 Phase 4 — Composition
   S9  Path map (depends on S6 + S8)
@@ -417,7 +419,6 @@ Accommodations CRUD (the brief's most detailed entity) and the missing-nights da
 ### Scope (out)
 
 - Geocoding (manual lat/lng only for v1).
-- Linking expenses to accommodations (S7 handles the expense side).
 
 ### Sharp edges
 
@@ -450,58 +451,14 @@ Accommodations CRUD (the brief's most detailed entity) and the missing-nights da
 
 ---
 
-## S7 — Expenses + FX
+## S7 — Expenses + FX — **REMOVED (ADR-0018)**
 
-- **Phase:** 3 — Features
-- **Depends on:** S5
-- **Owned directories:** `src/features/expenses/`, `src/lib/currency/`
-- **Branch:** `slice/S7-expenses`
+Shipped in Phase 3, removed 2026-08-30. The feature, `src/lib/currency/`'s FX
+modules, the `expenses` Dexie store and the `/expenses` tab are gone; the spec
+that produced them is recoverable from git history along with the code. Vault
+ledger files (`Trips/<slug>/Expenses/<yyyy-mm>.md`) were left in place.
 
-### Goal
-
-Multi-currency expense tracking with snapshot conversions (ADR-0008) and category/period summaries.
-
-### Scope (in)
-
-- Expense entry form: date, amount, currency, category, description, optional location.
-- Monthly ledger files: `<vault>/Travel/Trips/<slug>/Expenses/<yyyy-mm>.md` (one line per expense, frontmatter declares `type: expenses-ledger` and `month`).
-- Line-level patching via S1's line primitives (block-ref `^e-<ulid-suffix>`).
-- Frankfurter integration: daily fetch, cache to `.travel/rates/<yyyy-mm-dd>.json` (synced via Drive).
-- Snapshot conversion on insert: store native `{ amount, currency }` + `home_conversion { amount, currency, rate, rate_date }`.
-- Summaries: by category (current month, current trip), by period (week, month, all-time-trip).
-- Stale-rate label in UI when conversion is > 1 day old.
-
-### Scope (out)
-
-- Currency editor (currencies are entered as 3-letter codes).
-- Exchange-rate trend charts (defer).
-
-### Sharp edges
-
-- Frankfurter coverage: some currencies (e.g., Lao kip) may be missing. Fallback to `open.er-api.com` for missing codes; document.
-- Don't compute conversions during list render — compute at insert time and persist.
-- When the user changes the trip's `home_currency`, existing snapshots remain in the old currency (they're historical). Show both if requested; don't rewrite.
-
-### Deliverables
-
-- `src/lib/currency/frankfurter.ts`, `cache.ts`, `convert.ts`, `*.test.ts`
-- `src/features/expenses/parser.ts` (ledger line format), `parser.test.ts`
-- `src/features/expenses/queries.ts`, `reconciler.ts`
-- `src/features/expenses/components/{Form,List,Summaries,Route}.tsx`
-
-### Acceptance
-
-- Property test: ledger round-trip (parse → serialize) on a corpus.
-- Offline insert with cached rate works; UI labels conversion as cached.
-- Switching trips switches the expense scope (multi-trip isolation).
-
-### Kickoff prompt
-
-> You are picking up slice **S7 — Expenses + FX** for the Travel Journal project. Read `CLAUDE.md`, then `IMPLEMENTATION-PLAN.md` (your slice section), then `docs/adr/0008-multi-currency.md` and `docs/adr/0004-markdown-conventions.md`.
->
-> Your goal: multi-currency expense entry with snapshot conversions, monthly ledger files patched line-level, Frankfurter daily rates cached to the vault.
->
-> Branch: `slice/S7-expenses`. Conversion is computed on insert and persisted (per ADR-0008). Property-test the ledger round-trip. Open a PR titled `S7 — Expenses + FX` when gates are green.
+See `docs/adr/0018-remove-expenses.md`. ADR-0008 is superseded.
 
 ---
 
@@ -721,7 +678,7 @@ A focused editor over checkbox + Dataview inline-field markdown (per ADR-0004).
 
 ---
 
-## S12 — Articles
+## S12 — Articles — **DONE**
 
 - **Phase:** 3 — Features
 - **Depends on:** S5; integrates with S8 if available

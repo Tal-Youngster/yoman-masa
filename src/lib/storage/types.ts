@@ -2,7 +2,6 @@ import type {
   TripId,
   AccommodationId,
   PlaceId,
-  ExpenseId,
   TaskId,
   ShoppingItemId,
   ArticleId,
@@ -18,18 +17,15 @@ export type EntityType =
   | 'trip'
   | 'accommodation'
   | 'place'
-  | 'expense'
   | 'task'
   | 'shopping_item'
   | 'article'
-  | 'active_config'
-  | 'rates_snapshot';
+  | 'active_config';
 
 export type EntityId =
   | TripId
   | AccommodationId
   | PlaceId
-  | ExpenseId
   | TaskId
   | ShoppingItemId
   | ArticleId;
@@ -101,19 +97,7 @@ export type KVKey =
   /** Display name of the picked Travel folder. Captured from the Picker at
    *  pick time so the UI can show "Folder: <name>" even when offline. */
   | 'travel_folder_name'
-  | 'drive_changes_page_token'
-  | 'rates_snapshot';
-
-/**
- * Inline shape — `src/lib/currency/` is the typed owner and validates with a
- * zod schema on read. Stored as a JSON blob in Dexie's kv table.
- */
-export interface StoredRatesSnapshot {
-  base: string;
-  date: string;
-  rates: Record<string, number>;
-  source: 'frankfurter' | 'fallback';
-}
+  | 'drive_changes_page_token';
 
 export interface KVValueMap {
   active_trip_id: TripId;
@@ -121,7 +105,6 @@ export interface KVValueMap {
   travel_folder_file_id: string;
   travel_folder_name: string;
   drive_changes_page_token: string;
-  rates_snapshot: StoredRatesSnapshot;
 }
 export type KVValue<K extends KVKey> = KVValueMap[K];
 

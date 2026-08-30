@@ -3,7 +3,7 @@
  *
  * The outbound side (`@/sync/queue`) serializes one entity per write_queue
  * row. Inbound is shaped differently: a single Drive file may contain 0..N
- * entities (Trip.md → 1; an expenses ledger → many), and the lifecycle is
+ * entities (Trip.md → 1; a Tasks.md ledger → many), and the lifecycle is
  * driven by the Drive Changes feed rather than a local queue. Keeping the
  * two interfaces separate lets each evolve without contorting the other.
  *

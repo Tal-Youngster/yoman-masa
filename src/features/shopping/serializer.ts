@@ -8,7 +8,7 @@
  * A shopping item with the same fields always serialises to the same bytes, so
  * a canonically-ordered line round-trips byte-for-byte. Unknown tokens are
  * re-emitted verbatim (after the tags, before the block ref). Cost is formatted
- * as a two-decimal amount per the expenses convention so the vault display is
+ * as a two-decimal amount so the vault display is
  * consistent.
  */
 
@@ -55,7 +55,7 @@ export function serializeShoppingFile(input: SerializeShoppingFileInput): string
 }
 
 function formatAmount(n: number): string {
-  // Match the expenses formatter: round to minor units, keep trailing zeros so
+  // Round to minor units and keep trailing zeros so
   // a $120 cost stays "120.00", not "120". Uniform money display in the vault.
   const rounded = Math.round(n * 100) / 100;
   return rounded.toFixed(2);
