@@ -8,7 +8,7 @@ Multi-agent dispatch plan for the Travel Journal app. Each slice is sized to be 
 
 - **S15 — Accommodation from Gmail** (`slice/S15-gmail-accommodation`, ADR-0016). Adds Gmail as a third AI-extraction source for accommodations, alongside the existing URL + screenshot flow. New `src/lib/gmail/` read-only client (`listRecentInbox` / `getMessageText`, real REST + `FakeGmail`, pure MIME decode in `mime.ts`), `gmail.readonly` added to the GIS scope in `main.tsx` (same token authorizes Drive + Gmail), `AiClient.extractData` gains an optional `text` input, and a `GmailPicker` (recent-inbox list) wired into `AiExtractionDialog`. Shared prompt/types extracted to `features/accommodations/ai-extraction.ts`. Body text only — attachments deferred. Gates green; 16 new tests (MIME decode + client auth paths).
 
-Next up: **S9 — Path map** (re-spec'd against Google Maps), still unstarted; see the slice catalog below.
+Next up: nothing queued. S9 (Path map) was removed by ADR-0017; S7 (Expenses) by ADR-0018.
 
 ### Completed
 
@@ -47,6 +47,8 @@ Next up: **S9 — Path map** (re-spec'd against Google Maps), still unstarted; s
   - **Sync folder prefix fix + Drive config UI move** (`fix/sync-folder-prefix-and-config-ui`). Outbound `resolveParent` was double-counting the `Travel/` WRITE_ALLOWED_PREFIX, writing files at `<picked>/Travel/Trips/<slug>/Trip.md` instead of `<picked>/Trips/<slug>/Trip.md`. Single-device round-trip hid it; the moment a second device pulled, `tripInboundReconciler.matchesPath` (`^Trips/<slug>/Trip\.md$`) rejected the nested paths and trips silently failed to converge. Extracted `resolveParent` into `src/app/resolve-parent.ts` with 9 FakeDrive-backed regression tests. Same PR moves the "Drive Config" card from the profile menu into the `SyncStatus` cloud-icon popover, adds a new `travel_folder_name` KV key captured at pick time so the popover renders the configured folder + status text offline-safe. Existing nested files need a one-time manual move in Drive UI.
   - **S16 — Trip-centric UI/UX refactor** (`slice/S16-nav-overview`, ADR-0017). Lifts Trips out of the flat tab set into a distinct master tab (elevated side-nav block + accented bottom-nav slot); tapping a trip activates it and drops into the Overview. Rebuilds `/` as the trip-scoped **Trip Overview** (hero General card + four tappable tiles: Trip Map static-map preview, missing-nights countdown, tasks, shopping). Relabels Places → **Trip Map** and surfaces accommodations as blue "stay" pins there (tap → read-only `AccommodationView`). Adds Static-Maps thumbnails to accommodation rows via a new `src/lib/maps/static-map.ts`. **Removes the standalone Path map** (S9) — supersedes ADR-0015. Welcoming polish across login, top bar, and empty states (shared `EmptyState`). Gates green; 520 tests. **Action item:** enable the **Maps Static API** on `VITE_GOOGLE_API_KEY` for the thumbnails/preview to render.
 
+  - **S12 — Articles + expenses removal** (`slice/S12-articles-drop-expenses`, ADR-0018). Implements the last Phase-3 slice: `src/features/articles/` with file-per-article notes (`Trips/<slug>/Articles/<slug>.md` and `General/Articles/<slug>.md`), body-as-notes parsing that preserves Obsidian prose and unknown frontmatter, outbound + inbound reconcilers, an `articlesAdmin` service with scope-aware slug-collision handling, and the list/form/detail UI with title-tag-host search, tag chips and place deep-linking. `Article` gains an optional `slug` so a retitle keeps the same file; trip slug derivation moves to a shared `src/lib/slug.ts`. Same branch **removes expenses** (ADR-0018): feature, domain entity, FX modules, `/expenses` tab, and the `expenses` Dexie store (schema v5, which also purges queued expense writes and the rates snapshot). Vault ledger files are left on Drive. Gates green; 519 tests.
+
 ## Phase map
 
 ```
@@ -65,7 +67,7 @@ Phase 3 — Features (parallel)
   S8  Wishlist places + map
   S10 Tasks (vault-backed)
   S11 Shopping list (vault-backed)
-  S12 Articles
+  S12 Articles  (done)
 
 Phase 4 — Composition
   S9  Path map (depends on S6 + S8)
@@ -676,7 +678,7 @@ A focused editor over checkbox + Dataview inline-field markdown (per ADR-0004).
 
 ---
 
-## S12 — Articles
+## S12 — Articles — **DONE**
 
 - **Phase:** 3 — Features
 - **Depends on:** S5; integrates with S8 if available
