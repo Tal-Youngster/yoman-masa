@@ -8,7 +8,7 @@ Multi-agent dispatch plan for the Travel Journal app. Each slice is sized to be 
 
 - **S15 — Accommodation from Gmail** (`slice/S15-gmail-accommodation`, ADR-0016). Adds Gmail as a third AI-extraction source for accommodations, alongside the existing URL + screenshot flow. New `src/lib/gmail/` read-only client (`listRecentInbox` / `getMessageText`, real REST + `FakeGmail`, pure MIME decode in `mime.ts`), `gmail.readonly` added to the GIS scope in `main.tsx` (same token authorizes Drive + Gmail), `AiClient.extractData` gains an optional `text` input, and a `GmailPicker` (recent-inbox list) wired into `AiExtractionDialog`. Shared prompt/types extracted to `features/accommodations/ai-extraction.ts`. Body text only — attachments deferred. Gates green; 16 new tests (MIME decode + client auth paths).
 
-Next up: nothing queued. S9 (Path map) was removed by ADR-0017; S7 (Expenses) by ADR-0018.
+Next up: **S18 — Add a place by sharing from Google Maps** (ADR-0019) — registers the PWA as an Android Web Share Target so a place shared from Google Maps lands on a prefilled confirm screen. S9 (Path map) was removed by ADR-0017; S7 (Expenses) by ADR-0018.
 
 ### Completed
 
@@ -68,6 +68,7 @@ Phase 3 — Features (parallel)
   S10 Tasks (vault-backed)
   S11 Shopping list (vault-backed)
   S12 Articles  (done)
+  S18 Share-to-add place (depends on S8b)
 
 Phase 4 — Composition
   S9  Path map (depends on S6 + S8)
@@ -821,6 +822,104 @@ URL and screenshot extraction.
 - Gmail client maps the inbox list and surfaces `GmailAuthError` on 401/403.
 - Picker handles not-connected / needs-reconnect / empty-inbox states.
 - ADR-0016 referenced from the PR. Gates green.
+
+---
+
+## S18 — Add a place by sharing from Google Maps
+
+- **Phase:** 3 — Features (follow-up to S8b)
+- **Depends on:** S8b (Google Maps places), S13 (PWA install)
+- **Owned directories:** `src/features/places/`; touches `vite.config.ts` (manifest) and `src/app/router.tsx`
+- **Branch:** `slice/S18-share-target`
+- **ADR:** 0019
+
+### Goal
+
+Make Travel Journal a target in the Android share sheet, so sharing a place from the
+Google Maps app drops straight into a prefilled confirm screen instead of the
+copy-link / switch-app / paste dance that currently dead-ends on a `maps.app.goo.gl`
+link the form can't expand.
+
+### Scope (in)
+
+- **`share_target` in the manifest** — `method: "GET"`, `action: "/places/share"`,
+  `params: { title, text, url }`. GET only; no service-worker interception (ADR-0019).
+- **`src/features/places/share-payload.ts`** — pure
+  `parseSharePayload({ title?, text?, url? }) => { url?, name?, address? }`. Scans all
+  three fields for a URL (senders are inconsistent), parses the remainder **by line**,
+  and never assumes the `url` field is populated.
+- **`src/features/places/resolve-place.ts`** — the Text Search + Place Details logic
+  lifted verbatim out of `components/Form.tsx` into a framework-free module taking an
+  injectable `fetch`, so the form and the share route share one implementation.
+  `Form.tsx` is refactored onto it in the same slice.
+- **`src/features/places/components/ShareTargetRoute.tsx`** — the confirm screen:
+  resolved place name + address, Static-Maps preview (`src/lib/maps/static-map.ts`),
+  trip picker defaulting to the active trip, category, notes, Save.
+- **Route** `/places/share` under `appRoute`, with `validateSearch` for the three params.
+- **README** note: the share entry appears only after the PWA is (re)installed.
+
+### Scope (out)
+
+- Google Takeout / saved-list import — separate slice.
+- iOS. `share_target` is unsupported in Safari; no Shortcuts bridge in this slice.
+- File/image shares (would force a POST target + `injectManifest`).
+- Sharing anything other than a place (no accommodation/article share targets yet).
+
+### Deliverables
+
+- `src/features/places/share-payload.ts`, `share-payload.test.ts`
+- `src/features/places/resolve-place.ts`, `resolve-place.test.ts`
+- `src/features/places/components/ShareTargetRoute.tsx`
+- `Form.tsx` refactored onto `resolve-place.ts` (no behaviour change)
+- `vite.config.ts` manifest `share_target` block
+- `src/app/router.tsx` route registration
+- `docs/adr/0019-share-target-places.md` (written)
+
+### Acceptance
+
+- `parseSharePayload` unit-tested against real Google Maps share shapes: URL-in-`text`
+  with name + address lines, URL-in-`url` with `title` set, bare short link with no name,
+  a `?api=1` link carrying `query_place_id`, raw `lat,lng`, and junk input.
+- `resolve-place` tested with a stubbed `fetch`: `placeId` short-circuit, Text Search with
+  and without `locationBias`, 403 → "enable Places API (New)", zero results, network error.
+- Share route renders each cold-start state without crashing: logged out, no Drive folder
+  picked, no active trip, unresolvable payload (falls through to the manual form,
+  prefilled — **not** an error screen).
+- A share whose `place_id` already exists offers to open the existing place instead of
+  reporting a duplicate failure.
+- `Form.tsx` behaviour unchanged after the refactor — existing places tests still pass.
+- Gates green: `npm run typecheck`, `npm run test:run`, `npm run lint`.
+
+### Sharp edges
+
+- **Don't trust the `url` param.** Google Maps on Android usually puts everything in
+  `text`. Splitting on whitespace to find the URL breaks multi-line payloads — parse lines.
+- **Short links stay unexpandable.** `parseGoogleMapsUrl` returns `{ shortened: true }` and
+  that is correct; the share flow works around it via Text Search on the name/address text
+  that rides along in the payload, not by resolving the link.
+- **`Place.trip_id` is required** — Places has no cross-trip "General" scope. The confirm
+  screen must pick a trip; it cannot save without one.
+- Keep `maxResultCount: 1` and the `X-Goog-FieldMask` headers when moving the Text Search
+  call — an unmasked Places request bills at a higher SKU.
+- `share_target.action` must sit inside manifest `scope` (`/`).
+- Testing this needs an installed PWA over HTTPS; `npm run dev` over LAN won't register a
+  share target.
+
+### Kickoff prompt
+
+> You are picking up slice **S18 — Add a place by sharing from Google Maps**. Read
+> `CLAUDE.md`, then this slice section, then `docs/adr/0019-share-target-places.md` (it
+> locks the GET-share-target decision and the resolution order), then
+> `docs/adr/0013-places-google-maps.md` for context on why places are Google-native.
+>
+> Your goal: register the PWA as a Web Share Target, parse the Android share payload with
+> a pure tested function, reuse the existing Google resolution pipeline (extracted out of
+> `Form.tsx` so it isn't duplicated), and land the share on a confirm screen that can
+> handle a cold start.
+>
+> Branch: `slice/S18-share-target`. Do not add a backend or a proxy to expand
+> `maps.app.goo.gl` links — ADR-0001 and ADR-0019 both rule that out. Open a PR titled
+> `S18 — Add a place by sharing from Google Maps` when gates are green.
 
 ---
 
