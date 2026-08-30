@@ -86,3 +86,24 @@ REST calls with the bearer token, an in-memory fake for tests.
 - **Read-only by construction.** The scope and the client interface are both
   read-only; there is no code path that could mutate the mailbox even if a bug
   tried to.
+
+## Amendments
+
+### 2026-08-30 — Mailbox search in the picker
+
+The "no in-app search in v1" line above is lifted. The recent-inbox list only
+finds a confirmation that is still among the newest ~25 INBOX messages, which
+fails for the common case: booking now, planning the trip weeks later with the
+email long since read, archived or filtered into a label.
+
+- `GmailClient` gains `searchMessages(query, max?)`. Read-only still holds —
+  it is another `messages.list` call, just with `q=` instead of
+  `labelIds=INBOX`.
+- **Search spans the whole mailbox**, not just INBOX. No `labelIds` and no
+  `includeSpamTrash`, so Gmail searches all mail except spam and trash.
+- The query is passed to Gmail **verbatim**, so operators (`from:`,
+  `subject:`, `after:`) work. No client-side query building.
+- **Runs on submit, not per keystroke.** Each search is one `messages.list`
+  plus one metadata `get` per hit; debounced typeahead would multiply that for
+  no real gain on a form the user opens deliberately. A blank query falls back
+  to the recent-inbox list, which stays the default view.
