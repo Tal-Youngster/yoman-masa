@@ -135,6 +135,37 @@ export function defineSchema(db: Dexie): void {
       await tx.table('kv').delete('rates_snapshot');
       await tx.table('kv').put({ key: '__schema_v5__', value: 'true' });
     });
+
+  // v6 — per-item retry scheduling for the continuous sync engine (ADR-0019).
+  //
+  //   `next_attempt_at` (epoch ms, 0 = ready) lets the drain skip a backing-off
+  //   row instead of stalling behind it. Pre-v6 a single failing item blocked
+  //   every write queued after it, forever.
+  //
+  //   `dead` (0|1, indexed) replaces "delete the row on terminal failure".
+  //   Deleting discarded the user's edit with no trace. A dead row is retained,
+  //   excluded from the drain, excluded from inbound write-suppression, and
+  //   counted by the status indicator.
+  //
+  // The stale page token is dropped as well: tokens written before the
+  // `newStartPageToken` fix never advanced past the point they were minted, so
+  // every one of them is a replay loop. Clearing forces one backfill, which
+  // re-derives correct `file_meta` and mints a token that actually moves.
+  db.version(6)
+    .stores({
+      write_queue: 'id, entity_type, entity_id, created_at, file_id, resolved_path, dead',
+    })
+    .upgrade(async (tx) => {
+      await tx
+        .table('write_queue')
+        .toCollection()
+        .modify((row: { next_attempt_at?: unknown; dead?: unknown }) => {
+          if (row.next_attempt_at === undefined) row.next_attempt_at = 0;
+          if (row.dead === undefined) row.dead = 0;
+        });
+      await tx.table('kv').delete('drive_changes_page_token');
+      await tx.table('kv').put({ key: '__schema_v6__', value: 'true' });
+    });
 }
 
 /** Shared singleton for the running app. Tests construct their own per-test instance. */

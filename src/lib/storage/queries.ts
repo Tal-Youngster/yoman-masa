@@ -231,10 +231,15 @@ export async function deleteFileMeta(fileId: string, db?: DB): Promise<void> {
  *  - first-time creates: `file_id: null`, `resolved_path` = the target path.
  *  - updates: `file_id: '<drive-file-id>'`, `resolved_path` = the existing path.
  */
-export type EnqueueInput = Omit<WriteQueueItem, 'attempts' | 'last_error' | 'created_at'> & {
+export type EnqueueInput = Omit<
+  WriteQueueItem,
+  'attempts' | 'last_error' | 'created_at' | 'next_attempt_at' | 'dead'
+> & {
   attempts?: number;
   last_error?: string | null;
   created_at?: number;
+  next_attempt_at?: number;
+  dead?: 0 | 1;
 };
 
 export async function enqueueWrite(item: EnqueueInput, db?: DB): Promise<void> {
@@ -242,6 +247,8 @@ export async function enqueueWrite(item: EnqueueInput, db?: DB): Promise<void> {
     attempts: 0,
     last_error: null,
     created_at: Date.now(),
+    next_attempt_at: 0,
+    dead: 0,
     ...item,
   };
   await dbHandle(db).write_queue.put(stripUndefined(row));
@@ -264,10 +271,40 @@ export async function drainNext(db?: DB): Promise<WriteQueueItem | null> {
   });
 }
 
-/** Non-destructive FIFO head. The row remains in the queue. */
+/** Non-destructive FIFO head. The row remains in the queue.
+ *
+ *  Ignores `dead` / `next_attempt_at` — prefer {@link listReadyWrites} for the
+ *  drain. Retained for tests and for callers that want the raw head. */
 export async function peekNextPending(db?: DB): Promise<WriteQueueItem | null> {
   const next = await dbHandle(db).write_queue.orderBy('created_at').first();
   return next ?? null;
+}
+
+/**
+ * Rows the drain may attempt right now: alive (`dead === 0`) and past their
+ * backoff deadline, oldest first.
+ *
+ * Deliberately returns the whole ready set rather than just the head. A single
+ * head means one backing-off row blocks everything behind it — the ADR-0019
+ * head-of-line defect. The caller walks this list and steps over anything it
+ * has already claimed. The queue is tiny (tens of rows at most during a
+ * sync), so the filter runs client-side rather than earning a compound index.
+ */
+export async function listReadyWrites(now: number, db?: DB): Promise<WriteQueueItem[]> {
+  const alive = await dbHandle(db).write_queue.where('dead').equals(0).toArray();
+  return alive
+    .filter((r) => (r.next_attempt_at ?? 0) <= now)
+    .sort((a, b) => a.created_at - b.created_at);
+}
+
+/** Live (non-dead) queue depth — what the status indicator calls "pending". */
+export async function countPendingWrites(db?: DB): Promise<number> {
+  return dbHandle(db).write_queue.where('dead').equals(0).count();
+}
+
+/** Rows that exhausted retries or hit a terminal error and were retained. */
+export async function countDeadWrites(db?: DB): Promise<number> {
+  return dbHandle(db).write_queue.where('dead').equals(1).count();
 }
 
 /** Remove a queue row by id. Idempotent. */
@@ -280,7 +317,20 @@ export async function peekQueue(limit = 50, db?: DB): Promise<WriteQueueItem[]> 
   return dbHandle(db).write_queue.orderBy('created_at').limit(limit).toArray();
 }
 
-export async function recordQueueFailure(id: string, error: string, db?: DB): Promise<void> {
+/**
+ * Record a failed attempt.
+ *
+ * `nextAttemptAt` is the epoch-ms deadline before which the drain must skip
+ * this row; `dead` retires it permanently. Both are decided by the caller
+ * (the sync worker owns the backoff curve and the attempt cap) so the storage
+ * layer stays policy-free.
+ */
+export async function recordQueueFailure(
+  id: string,
+  error: string,
+  opts: { nextAttemptAt?: number; dead?: boolean } = {},
+  db?: DB,
+): Promise<void> {
   const handle = dbHandle(db);
   await handle.transaction('rw', handle.write_queue, async () => {
     const row = await handle.write_queue.get(id);
@@ -289,6 +339,8 @@ export async function recordQueueFailure(id: string, error: string, db?: DB): Pr
       ...row,
       attempts: row.attempts + 1,
       last_error: error,
+      next_attempt_at: opts.nextAttemptAt ?? row.next_attempt_at ?? 0,
+      dead: opts.dead ? 1 : (row.dead ?? 0),
     });
   });
 }

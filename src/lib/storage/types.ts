@@ -59,6 +59,21 @@ export interface WriteQueueItem {
   last_error: string | null;
   /** epoch ms */
   created_at: number;
+  /**
+   * Epoch ms before which the drain must not retry this row. `0` = ready now
+   * (v6+). This is what makes a failing write *skippable* rather than a
+   * head-of-line block: the drain selects the oldest ready row and steps over
+   * anything still backing off. See ADR-0019.
+   */
+  next_attempt_at: number;
+  /**
+   * `1` once the row exhausted its retries or hit a terminal error. Dead rows
+   * are retained rather than deleted so the edit isn't silently lost, and are
+   * excluded from both the drain and the inbound-suppression predicate — a
+   * permanently-failed write must not freeze inbound updates for its entity.
+   * Numeric because IndexedDB cannot index booleans.
+   */
+  dead: 0 | 1;
 }
 
 /** Drive metadata cached per file. Keyed by Drive `file_id`. */
@@ -97,7 +112,10 @@ export type KVKey =
   /** Display name of the picked Travel folder. Captured from the Picker at
    *  pick time so the UI can show "Folder: <name>" even when offline. */
   | 'travel_folder_name'
-  | 'drive_changes_page_token';
+  | 'drive_changes_page_token'
+  /** Travel folder id the page token was minted against. A token is only
+   *  valid for the folder it was issued under; re-picking invalidates it. */
+  | 'drive_changes_token_folder';
 
 export interface KVValueMap {
   active_trip_id: TripId;
@@ -105,6 +123,7 @@ export interface KVValueMap {
   travel_folder_file_id: string;
   travel_folder_name: string;
   drive_changes_page_token: string;
+  drive_changes_token_folder: string;
 }
 export type KVValue<K extends KVKey> = KVValueMap[K];
 
