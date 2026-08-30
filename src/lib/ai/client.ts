@@ -14,7 +14,7 @@ export interface AiClient {
 export class GeminiClient implements AiClient {
   private apiKey: string;
   // Use a modern model version (gemini-1.5-flash is deprecated as of 2026)
-  private model: string = (import.meta.env?.VITE_GEMINI_MODEL as string | undefined) || 'gemini-2.5-flash';
+  private model: string = import.meta.env?.VITE_GEMINI_MODEL || 'gemini-2.5-flash';
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;

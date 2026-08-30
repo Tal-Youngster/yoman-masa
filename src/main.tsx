@@ -36,7 +36,7 @@ if (!root) throw new Error('Missing #root');
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 const developerKey = import.meta.env.VITE_GOOGLE_API_KEY as string | undefined;
-const geminiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 import type { DriveClient } from './sync/drive';
 import { GeminiClient } from './lib/ai/client';
