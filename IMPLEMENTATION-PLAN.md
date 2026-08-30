@@ -31,7 +31,7 @@ Next up: **S9 — Path map** (re-spec'd against Google Maps), still unstarted; s
 
 - **Phase 3 — Features** (S6, S7, S8, S10 baseline — merged)
   - **S6 — Accommodations + Missing Nights** (PR #6): file-per-accommodation under `Travel/Trips/<slug>/Accommodations/`, parser with body preservation, attachments path, missing-nights dashboard card wired to `computeMissingNights`.
-  - **S7 — Expenses + FX**: monthly ledger files, line-level patching by `^e-<ulid>` block-ref, Frankfurter integration with snapshot conversions per ADR-0008. Later passes added the curated `CurrencyPicker`, home-currency category totals + pie chart, and adopted the picker in `TripForm` and `ExpenseForm`.
+  - **S7 — Expenses + FX**: shipped, then **removed** on 2026-08-30 (ADR-0018). The curated `CurrencyPicker` it introduced survives in `src/ui/components/` and is still used by `TripForm`.
   - **S8 — Wishlist places + map** (PR #7): place CRUD with map view. Originally built on MapLibre + Protomaps PMTiles per ADR-0005. **Superseded mid-feature by S8b (ADR-0013)** — see In-flight above for the Google Maps pivot.
   - **S10 — Tasks baseline** (3 commits direct to `main`): line parser + serializer (Obsidian Tasks emoji syntax per ADR-0004), reconciler registered with the queue worker, queries + `tasksAdmin` service, and the UI (`TasksRoute`, `TasksList`, `TaskForm`, `TasksDashboardCard`). The quick-add UX + ADR-0011 (recurrence) + ADR-0012 (manual order) are the in-flight follow-up PR above.
 
@@ -61,7 +61,7 @@ Phase 2 — Spine (single slice; blocks Phase 3)
 
 Phase 3 — Features (parallel)
   S6  Accommodations + Missing Nights dashboard
-  S7  Expenses + FX
+  S7  Expenses + FX  (removed — ADR-0018)
   S8  Wishlist places + map
   S10 Tasks (vault-backed)
   S11 Shopping list (vault-backed)
@@ -417,7 +417,6 @@ Accommodations CRUD (the brief's most detailed entity) and the missing-nights da
 ### Scope (out)
 
 - Geocoding (manual lat/lng only for v1).
-- Linking expenses to accommodations (S7 handles the expense side).
 
 ### Sharp edges
 
@@ -450,58 +449,14 @@ Accommodations CRUD (the brief's most detailed entity) and the missing-nights da
 
 ---
 
-## S7 — Expenses + FX
+## S7 — Expenses + FX — **REMOVED (ADR-0018)**
 
-- **Phase:** 3 — Features
-- **Depends on:** S5
-- **Owned directories:** `src/features/expenses/`, `src/lib/currency/`
-- **Branch:** `slice/S7-expenses`
+Shipped in Phase 3, removed 2026-08-30. The feature, `src/lib/currency/`'s FX
+modules, the `expenses` Dexie store and the `/expenses` tab are gone; the spec
+that produced them is recoverable from git history along with the code. Vault
+ledger files (`Trips/<slug>/Expenses/<yyyy-mm>.md`) were left in place.
 
-### Goal
-
-Multi-currency expense tracking with snapshot conversions (ADR-0008) and category/period summaries.
-
-### Scope (in)
-
-- Expense entry form: date, amount, currency, category, description, optional location.
-- Monthly ledger files: `<vault>/Travel/Trips/<slug>/Expenses/<yyyy-mm>.md` (one line per expense, frontmatter declares `type: expenses-ledger` and `month`).
-- Line-level patching via S1's line primitives (block-ref `^e-<ulid-suffix>`).
-- Frankfurter integration: daily fetch, cache to `.travel/rates/<yyyy-mm-dd>.json` (synced via Drive).
-- Snapshot conversion on insert: store native `{ amount, currency }` + `home_conversion { amount, currency, rate, rate_date }`.
-- Summaries: by category (current month, current trip), by period (week, month, all-time-trip).
-- Stale-rate label in UI when conversion is > 1 day old.
-
-### Scope (out)
-
-- Currency editor (currencies are entered as 3-letter codes).
-- Exchange-rate trend charts (defer).
-
-### Sharp edges
-
-- Frankfurter coverage: some currencies (e.g., Lao kip) may be missing. Fallback to `open.er-api.com` for missing codes; document.
-- Don't compute conversions during list render — compute at insert time and persist.
-- When the user changes the trip's `home_currency`, existing snapshots remain in the old currency (they're historical). Show both if requested; don't rewrite.
-
-### Deliverables
-
-- `src/lib/currency/frankfurter.ts`, `cache.ts`, `convert.ts`, `*.test.ts`
-- `src/features/expenses/parser.ts` (ledger line format), `parser.test.ts`
-- `src/features/expenses/queries.ts`, `reconciler.ts`
-- `src/features/expenses/components/{Form,List,Summaries,Route}.tsx`
-
-### Acceptance
-
-- Property test: ledger round-trip (parse → serialize) on a corpus.
-- Offline insert with cached rate works; UI labels conversion as cached.
-- Switching trips switches the expense scope (multi-trip isolation).
-
-### Kickoff prompt
-
-> You are picking up slice **S7 — Expenses + FX** for the Travel Journal project. Read `CLAUDE.md`, then `IMPLEMENTATION-PLAN.md` (your slice section), then `docs/adr/0008-multi-currency.md` and `docs/adr/0004-markdown-conventions.md`.
->
-> Your goal: multi-currency expense entry with snapshot conversions, monthly ledger files patched line-level, Frankfurter daily rates cached to the vault.
->
-> Branch: `slice/S7-expenses`. Conversion is computed on insert and persisted (per ADR-0008). Property-test the ledger round-trip. Open a PR titled `S7 — Expenses + FX` when gates are green.
+See `docs/adr/0018-remove-expenses.md`. ADR-0008 is superseded.
 
 ---
 

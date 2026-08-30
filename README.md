@@ -24,8 +24,8 @@ See `docs/adr/` for the locked architectural decisions.
 ```
 src/
   domain/        # Zod schemas + types for every entity (Trip, Accommodation, ...)
-  features/      # Vertical slices: missing-nights, expenses, places, ...
-  lib/           # Parsers, date utils, FX, etc.
+  features/      # Vertical slices: missing-nights, articles, places, ...
+  lib/           # Parsers, date utils, currency list, etc.
   sync/          # Drive client, write queue, conflict resolution
   ui/            # Shared components, layout, bottom nav
 docs/adr/        # Architecture Decision Records
@@ -48,11 +48,9 @@ public/          # Static assets (icons, manifest)
       Articles/<slug>.md
       Accommodations/<yyyy-mm-dd>-<slug>.md
       Places/<slug>.md
-      Expenses/<yyyy-mm>.md             # monthly ledger
   .travel/                              # app-internal
     config.json                         # active trip, vault root pointer
     attachments/<sha256>.<ext>
-    rates/<yyyy-mm-dd>.json
 ```
 
 Every app-written file preserves user content below frontmatter / outside structured lines. The parser/serializer is round-trip safe.

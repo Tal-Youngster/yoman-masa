@@ -1,6 +1,6 @@
 # ADR 0008: Multi-currency — Frankfurter rates, snapshot conversions
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0018
 - **Date:** 2026-05-21
 
 ## Context

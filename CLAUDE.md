@@ -36,7 +36,6 @@ If you can't make all three pass, stop and ask. Do not merge a slice with red ga
 | Schemas  | Zod — single source of truth for entities                               |
 | Sync     | Google Drive API (full `drive` scope, GIS implicit)                     |
 | Maps     | MapLibre GL + Protomaps PMTiles                                         |
-| FX       | Frankfurter (`api.frankfurter.dev`)                                     |
 | Tests    | Vitest + fast-check (+ jsdom@25, React Testing Library, fake-indexeddb) |
 | Markdown | `yaml` (eemeli/yaml) for frontmatter parse/serialize                    |
 | Host     | Cloudflare Pages (static)                                               |
@@ -50,7 +49,7 @@ src/
   lib/
     markdown/    # Frontmatter parse/serialize + body preservation
     storage/     # Dexie schema + queries (read cache, write queue table)
-    currency/    # FX rates + conversions
+    currency/    # Curated ISO-4217 currency list
     util/        # Shared helpers
   sync/
     drive/       # Google Drive client + GIS auth + WRITE_ALLOWED_PREFIX guard
@@ -101,7 +100,7 @@ The data model and auth choices were made so these don't require a rewrite later
 | Why MapLibre + PMTiles?                 | ADR-0005 — **superseded by ADR-0013** |
 | Conflict resolution algorithm?          | ADR-0006 |
 | Identity?                               | ADR-0007 |
-| FX rate source + snapshot conversions?  | ADR-0008 |
+| FX rate source + snapshot conversions?  | ADR-0008 — **superseded by ADR-0018** |
 | Hosting + secrets?                      | ADR-0009 |
 | Multi-trip layout + invariants?         | ADR-0010 |
 | Task recurrence model?                  | ADR-0011 |
@@ -111,6 +110,7 @@ The data model and auth choices were made so these don't require a rewrite later
 | Path map rendering on Google Maps?      | ADR-0015 — **superseded by ADR-0017** |
 | Gmail read integration (accommodations)?| ADR-0016 |
 | Trip-centric navigation + UI refactor?  | ADR-0017 |
+| Why no expenses feature?                | ADR-0018 |
 
 ## When to ask the user
 
