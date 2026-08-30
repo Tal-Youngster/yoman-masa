@@ -35,7 +35,7 @@ If you can't make all three pass, stop and ask. Do not merge a slice with red ga
 | State    | Zustand (UI), TanStack Query (server), Dexie (cache)                    |
 | Schemas  | Zod — single source of truth for entities                               |
 | Sync     | Google Drive API (full `drive` scope, GIS implicit)                     |
-| Maps     | MapLibre GL + Protomaps PMTiles                                         |
+| Maps     | Google Maps (`@vis.gl/react-google-maps`) + Places API (New)             |
 | Tests    | Vitest + fast-check (+ jsdom@25, React Testing Library, fake-indexeddb) |
 | Markdown | `yaml` (eemeli/yaml) for frontmatter parse/serialize                    |
 | Host     | Cloudflare Pages (static)                                               |
