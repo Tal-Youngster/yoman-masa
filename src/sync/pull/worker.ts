@@ -1,9 +1,10 @@
 /**
  * Inbound pull worker.
  *
- * `pullAll` is the entry point. It reads the persisted change token; if
- * absent (first run), it delegates to {@link backfill}. Otherwise it pages
- * through `getChanges` to exhaustion and processes each change.
+ * `pullAll` is the entry point. It reads the persisted change token; if it is
+ * absent, minted against a different Travel folder, or rejected by Drive, it
+ * delegates to {@link backfill}. Otherwise it pages through `getChanges` to
+ * exhaustion and processes each change.
  *
  * Per-change flow:
  *  1. Resolve the file's path relative to `Travel/`. Not-under-Travel ⇒
@@ -18,12 +19,17 @@
  * path: look up by `file_id`, delete the referenced entity, drop the
  * file_meta row.
  *
- * The token is persisted ONLY after a full successful pass — partial
- * progress is replayable because every individual op is idempotent.
+ * The token is persisted ONLY when Drive hands back a `newStartPageToken`,
+ * which it emits solely on the final page — i.e. only once we are genuinely
+ * caught up. Partial progress is replayable because every individual op is
+ * idempotent. See ADR-0019 for the bug this replaced: the old code fell back
+ * to re-persisting the token it was given, so the cursor never moved and
+ * every pull replayed an ever-growing window.
  */
 
 import {
   deleteFileMeta,
+  deleteKV,
   getFileMeta,
   getKV,
   setKV,
@@ -31,7 +37,7 @@ import {
 } from '@/lib/storage';
 import type { TravelDB } from '@/lib/storage';
 
-import type { DriveChange } from '@/sync/drive';
+import { InvalidPageTokenError, type DriveChange } from '@/sync/drive';
 
 import { backfill } from './backfill.js';
 import { newPathCache, resolveRelativePath, type PathCache } from './path.js';
@@ -44,24 +50,53 @@ const MAX_PAGES = 100;
 
 export async function pullAll(deps: PullDeps): Promise<PullReport> {
   const token = await getKV('drive_changes_page_token', deps.db);
-  if (!token) {
+  const tokenFolder = await getKV('drive_changes_token_folder', deps.db);
+
+  // A token is only meaningful for the folder it was minted against. If the
+  // user re-picked, the cursor describes a vault we are no longer reading.
+  if (!token || tokenFolder !== deps.travelFolderId) {
     return backfill(deps);
   }
 
   const report = newPullReport();
   const cache = newPathCache();
-  let cursor = token;
+  let cursor: string = token;
 
   for (let page = 0; page < MAX_PAGES; page += 1) {
-    const batch = await deps.drive.getChanges(cursor);
+    let batch;
+    try {
+      batch = await deps.drive.getChanges(cursor);
+    } catch (err) {
+      if (err instanceof InvalidPageTokenError) {
+        // Self-healing path that replaced the manual "Resync from Drive"
+        // button: drop the unusable cursor and rebuild from a full walk.
+        await deleteKV('drive_changes_page_token', deps.db);
+        return backfill(deps);
+      }
+      throw err;
+    }
+
     for (const change of batch.changes) {
       await processChange(deps, change, cache, report);
     }
-    if (batch.nextPageToken === cursor) break;
+
+    if (batch.newStartPageToken) {
+      // Caught up. This is the ONLY point at which the cursor advances.
+      await setKV('drive_changes_page_token', batch.newStartPageToken, deps.db);
+      await setKV('drive_changes_token_folder', deps.travelFolderId, deps.db);
+      return report;
+    }
+
+    if (!batch.nextPageToken) {
+      // Neither token: Drive told us nothing actionable. Leave the cursor
+      // where it is and replay next pass rather than guessing.
+      break;
+    }
     cursor = batch.nextPageToken;
   }
 
-  await setKV('drive_changes_page_token', cursor, deps.db);
+  // Fell out via MAX_PAGES or a token-less page — deliberately do NOT persist
+  // the cursor. The next pass replays from the last known-good position.
   return report;
 }
 
@@ -101,6 +136,17 @@ async function processChange(
 
   const reconciler = deps.registry.match(relPath);
   if (!reconciler) {
+    report.skipped += 1;
+    return;
+  }
+
+  // Echo suppression (ADR-0019). If the revision Drive is reporting is the one
+  // we already recorded, this change is either our own outbound write coming
+  // back around or a duplicate event. Skipping here saves the `getContent`
+  // round-trip and a redundant re-parse of a file we are already consistent
+  // with.
+  const known = await getFileMeta(change.fileId, deps.db);
+  if (known && known.head_revision_id === change.file.headRevisionId) {
     report.skipped += 1;
     return;
   }
@@ -275,6 +321,12 @@ async function handleRemoval(
  * table — we don't go through the queue adapter because we want raw row
  * presence, not the worker-facing item shape.
  *
+ * Dead rows are explicitly excluded (ADR-0019). They are retained for
+ * visibility, but a write that will never be attempted again must not
+ * suppress inbound updates for its entity — that would freeze the entity at
+ * its stale local value permanently, which is the original wedge wearing a
+ * different hat.
+ *
  * Exported so `backfill` (which runs its own diff pass) can apply the same
  * suppression without duplicating the predicate.
  */
@@ -286,7 +338,7 @@ export async function hasPendingWrite(
   const row = await db.write_queue
     .where('entity_id')
     .equals(entityId)
-    .filter((r) => r.entity_type === entityType)
+    .filter((r) => r.entity_type === entityType && (r.dead ?? 0) === 0)
     .first();
   return row !== undefined;
 }

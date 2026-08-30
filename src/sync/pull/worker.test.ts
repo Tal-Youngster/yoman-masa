@@ -380,6 +380,119 @@ describe('pullAll — incremental change-feed pass', () => {
     const tokenAfterSecond = await getKV('drive_changes_page_token', db);
     expect(tokenAfterSecond).toBe(tokenAfterFirst);
   });
+
+  /**
+   * Regression for the ADR-0019 hang. The old client collapsed
+   * `nextPageToken ?? newStartPageToken ?? pageToken`, so on the final page it
+   * re-persisted the token it had just been given. The cursor never moved and
+   * every pull replayed an ever-growing window of changes — which is what made
+   * sync appear to spin forever.
+   */
+  it('advances the change token past changes it has consumed', async () => {
+    const drive = new FakeDrive();
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeReconciler());
+
+    seedTripFile(drive, 'argentina', { id: 'trp_arg', name: 'Argentina' });
+    await pullAll(makeDeps(drive, db, registry));
+    const tokenBefore = await getKV('drive_changes_page_token', db);
+
+    seedTripFile(drive, 'brazil', { id: 'trp_bra', name: 'Brazil' });
+    await pullAll(makeDeps(drive, db, registry));
+    const tokenAfter = await getKV('drive_changes_page_token', db);
+
+    expect(tokenAfter).not.toBe(tokenBefore);
+    expect(Number(tokenAfter)).toBeGreaterThan(Number(tokenBefore));
+
+    // And having advanced, the next pass sees nothing left to do.
+    const report = await pullAll(makeDeps(drive, db, registry));
+    expect(report.scanned).toBe(0);
+  });
+
+  it('pages through a multi-page change feed before advancing the token', async () => {
+    // One entry per page forces the nextPageToken branch, which a single-page
+    // feed never exercises.
+    const drive = new FakeDrive({ changePageSize: 1 });
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeReconciler());
+
+    await pullAll(makeDeps(drive, db, registry));
+
+    seedTripFile(drive, 'chile', { id: 'trp_chl', name: 'Chile' });
+    seedTripFile(drive, 'peru', { id: 'trp_per', name: 'Peru' });
+
+    await pullAll(makeDeps(drive, db, registry));
+
+    expect(await db.trips.get('trp_chl' as never)).toBeTruthy();
+    expect(await db.trips.get('trp_per' as never)).toBeTruthy();
+    expect(await pullAll(makeDeps(drive, db, registry))).toMatchObject({ scanned: 0 });
+  });
+
+  it('falls back to a full backfill when Drive rejects the stored token', async () => {
+    const drive = new FakeDrive();
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeReconciler());
+
+    await pullAll(makeDeps(drive, db, registry));
+    seedTripFile(drive, 'chile', { id: 'trp_chl', name: 'Chile' });
+
+    // An expired / foreign token. FakeDrive rejects anything out of range with
+    // InvalidPageTokenError, mirroring Drive's 404/410.
+    await setKV('drive_changes_page_token', '99999', db);
+
+    const report = await pullAll(makeDeps(drive, db, registry));
+
+    // Backfill walked the vault rather than erroring, and the entity landed.
+    expect(report.upserted).toBeGreaterThan(0);
+    expect(await db.trips.get('trp_chl' as never)).toBeTruthy();
+    expect(await getKV('drive_changes_page_token', db)).not.toBe('99999');
+  });
+
+  it('ignores a token minted against a different Travel folder', async () => {
+    const drive = new FakeDrive();
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeReconciler());
+
+    seedTripFile(drive, 'chile', { id: 'trp_chl', name: 'Chile' });
+    await pullAll(makeDeps(drive, db, registry));
+
+    // Simulate a re-pick: the cursor now describes a vault we no longer read.
+    await setKV('drive_changes_token_folder', 'some-other-folder', db);
+    await db.trips.clear();
+
+    // Backfill re-derives from the folder we are actually pointed at.
+    await pullAll(makeDeps(drive, db, registry));
+    expect(await db.trips.get('trp_chl' as never)).toBeTruthy();
+    expect(await getKV('drive_changes_token_folder', db)).toBe(drive.travelFolderId);
+  });
+
+  it('skips a change whose revision matches the one already recorded', async () => {
+    const drive = new FakeDrive();
+    const registry = new InboundReconcilerRegistry();
+    registry.register(makeReconciler());
+
+    const { fileId } = seedTripFile(drive, 'argentina', { id: 'trp_arg', name: 'Argentina' });
+    await pullAll(makeDeps(drive, db, registry));
+
+    // Replay the same (unchanged) file through the change feed, as an echo of
+    // our own write would arrive. Count getContent calls to prove we never
+    // re-fetched the body.
+    let bodyReads = 0;
+    const originalGetContent = drive.getContent.bind(drive);
+    drive.getContent = async (id) => {
+      bodyReads += 1;
+      return originalGetContent(id);
+    };
+
+    const meta = await drive.getMetadata(fileId);
+    drive.changes.push({ fileId, file: meta, removed: false });
+
+    const report = await pullAll(makeDeps(drive, db, registry));
+
+    expect(bodyReads).toBe(0);
+    expect(report.skipped).toBeGreaterThan(0);
+    expect(report.upserted).toBe(0);
+  });
 });
 
 /** A multi-entity stub modelling a ledger file. One file → N entities, just

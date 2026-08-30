@@ -36,6 +36,10 @@ export async function backfill(deps: PullDeps): Promise<PullReport> {
   await walk(deps, deps.travelFolderId, '', report, 0, visited, aliveByType);
   await reconcileAll(deps, aliveByType, report);
   await setKV('drive_changes_page_token', startToken, deps.db);
+  // Stamp the folder the token belongs to. `pullAll` refuses a token whose
+  // folder doesn't match, so a re-pick can't be read through a cursor that
+  // describes the previous vault (ADR-0019).
+  await setKV('drive_changes_token_folder', deps.travelFolderId, deps.db);
   return report;
 }
 
