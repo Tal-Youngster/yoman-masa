@@ -111,6 +111,7 @@ The data model and auth choices were made so these don't require a rewrite later
 | Gmail read integration (accommodations)?| ADR-0016 |
 | Trip-centric navigation + UI refactor?  | ADR-0017 |
 | Why no expenses feature?                | ADR-0018 |
+| Share-to-add place from Google Maps?    | ADR-0019 |
 
 ## When to ask the user
 
