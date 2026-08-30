@@ -55,9 +55,8 @@ export function TripsRoute(): React.JSX.Element {
   function handleFormSuccess(): void {
     setSheetOpen(false);
     setEditing(null);
-    // Best-effort sync after a mutation. Worker is idempotent if a sync is
-    // already in flight (we'd add a lock in a later slice).
-    if (tripsAdmin) void tripsAdmin.syncNow();
+    // No sync call here by design (ADR-0019): the write queue insert the form
+    // just performed is itself the trigger.
   }
 
   if (travelFolderId === undefined) {

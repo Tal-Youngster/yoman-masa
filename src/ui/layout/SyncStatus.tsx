@@ -1,46 +1,37 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getKV, deleteKV } from '@/lib/storage';
+import { getKV } from '@/lib/storage';
 import { useAppServices } from '@/app/use-app-services';
-import { Cloud, CloudOff, RefreshCw, AlertTriangle, FolderOpen, HardDrive, DownloadCloud } from 'lucide-react';
+import { useSyncState } from '@/app/use-sync-engine';
+import { Cloud, CloudOff, RefreshCw, AlertTriangle, FolderOpen, HardDrive } from 'lucide-react';
 
 /**
- * Top-bar Drive sync state + Drive configuration.
+ * Top-bar Drive sync indicator + Drive folder configuration.
  *
- * Drives the cloud icon (state) and a click-to-open popover that surfaces:
- *  - the picked Travel folder name (offline-safe — captured at pick time and
- *    persisted in KV; see `travel_folder_name`),
- *  - the live sync status as text (mirrors the icon),
- *  - the last sync error message + the failing item's `last_error` payload
- *    when present,
- *  - "Change folder" → re-runs the Picker (the same flow `AccountMenu` used
- *    to host),
- *  - "Sync now" → drains the write queue and triggers an inbound pull.
+ * Passive by design (ADR-0019). This component observes the sync engine; it
+ * cannot start, stop, or influence a sync. The "Sync now" and "Resync from
+ * Drive" buttons are deliberately gone: every trigger they stood in for is
+ * automatic, and their recovery role (a stale change token, local drift) is
+ * now self-healing via the backfill fallback in the pull worker.
  *
- * Auto-sync behaviour (1.5s debounce, error latching, online/offline
- * handling) is unchanged — only the popover wraps it now.
+ * What remains is the folder picker, which is *configuration* rather than
+ * sync — the user has to tell us which vault to treat as the database.
  */
 export function SyncStatus(): React.JSX.Element | null {
-  const { tripsAdmin, drive, kv, pullDriveInbound } = useAppServices();
+  const { drive, kv } = useAppServices();
+  const { phase, pending, dead, lastError } = useSyncState();
 
-  const [syncing, setSyncing] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pickBusy, setPickBusy] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
-
-  const pendingCount = useLiveQuery(() => db.write_queue.count(), []) ?? 0;
-  const firstPending = useLiveQuery(() => db.write_queue.orderBy('created_at').first(), []);
-  // `undefined` while loading; `null` when no folder is configured.
-  const travelFolderId = useLiveQuery(() => getKV('travel_folder_file_id'), []);
-  const travelFolderName = useLiveQuery(() => getKV('travel_folder_name'), []);
-  const lastFolderId = useRef<string | null | undefined>(undefined);
-
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // `undefined` while loading; `null` when no folder is configured.
+  const travelFolderId = useLiveQuery(() => getKV('travel_folder_file_id'), []);
+  const travelFolderName = useLiveQuery(() => getKV('travel_folder_name'), []);
+
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: MouseEvent): void {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
@@ -49,102 +40,11 @@ export function SyncStatus(): React.JSX.Element | null {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      setErrorMsg(null); // Clear error to re-trigger sync
-    };
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  // When the Travel folder is (re-)picked, clear any latched error so a queue
-  // that stalled on a missing/stale folder resumes on its own — no need to wait
-  // for a reconnect or a manual "Retry Now". We only react to a *change* to a
-  // valid id (not the initial load), so a folder that was valid all along
-  // doesn't wipe an unrelated transient error.
-  useEffect(() => {
-    if (travelFolderId === undefined) return; // still loading
-    const changed =
-      lastFolderId.current !== undefined && lastFolderId.current !== travelFolderId;
-    lastFolderId.current = travelFolderId;
-    if (changed && travelFolderId) setErrorMsg(null);
-  }, [travelFolderId]);
-
-  useEffect(() => {
-    let mounted = true;
-    if (pendingCount > 0 && isOnline && !syncing && !errorMsg && tripsAdmin) {
-      const timeout = setTimeout(() => {
-        void (async () => {
-          if (!mounted) return;
-          setSyncing(true);
-          const report = await tripsAdmin.syncNow();
-
-          // We MUST update state even if the effect cleaned up (e.g. pendingCount changed)
-          // otherwise the syncing animation gets stuck forever!
-          setSyncing(false);
-          if (!report) {
-            setErrorMsg('Sync failed. Please check your connection or Drive access.');
-          } else if (report.deadLettered > 0) {
-            setErrorMsg(`Failed to sync ${report.deadLettered} item(s). They are permanently stuck.`);
-          } else if (report.blocked > 0) {
-            // A blocked item won't succeed on retry (e.g. the Travel folder id
-            // is missing/stale). Latch the error so we stop the 1.5s retry loop
-            // and prompt the user to re-pick their folder. Cleared on reconnect
-            // or via "Retry Now".
-            setErrorMsg('Sync needs attention — re-pick your Travel folder to resume syncing.');
-          } else if (report.retried > 0) {
-            // A transient failure stalled the queue. Pause auto-retry (rather
-            // than hammering every 1.5s); it resumes on reconnect or "Retry Now".
-            setErrorMsg('Sync paused after a temporary error. It will retry when you reconnect.');
-          } else {
-            setErrorMsg(null);
-          }
-        })();
-      }, 1500); // 1.5s debounce for batch writes
-      return () => {
-        mounted = false;
-        clearTimeout(timeout);
-      };
-    }
-  }, [pendingCount, isOnline, syncing, errorMsg, tripsAdmin]);
-
-  const hasError = errorMsg !== null || (!isOnline && pendingCount > 0);
-  const isSynced = pendingCount === 0;
-
-  // Icon logic
-  let Icon = Cloud;
-  let iconClass = 'text-green-500';
-  let bgClass = 'bg-green-500/10';
-
-  if (syncing) {
-    Icon = RefreshCw;
-    iconClass = 'text-primary animate-spin';
-    bgClass = 'bg-primary/10';
-  } else if (hasError) {
-    Icon = AlertTriangle;
-    iconClass = 'text-red-500';
-    bgClass = 'bg-red-500/10';
-  } else if (!isSynced) {
-    Icon = CloudOff;
-    iconClass = 'text-amber-500';
-    bgClass = 'bg-amber-500/10';
-  }
-
-  // Status text. Mirrors the icon — kept side-by-side here so the popover and
-  // the tooltip stay consistent.
-  let statusText: string;
-  if (!isOnline) statusText = 'Offline';
-  else if (syncing) statusText = 'Syncing…';
-  else if (hasError) statusText = 'Sync error';
-  else if (!isSynced) statusText = `${pendingCount} pending`;
-  else statusText = 'All synced';
+  const { Icon, iconClass, bgClass, statusText, statusClass } = presentation(
+    phase,
+    pending,
+    dead,
+  );
 
   const handleChangeFolder = async (): Promise<void> => {
     if (!drive) {
@@ -158,60 +58,14 @@ export function SyncStatus(): React.JSX.Element | null {
       await kv.set('travel_folder_file_id', picked.id);
       await kv.set('vault_root_file_id', picked.id);
       await kv.set('travel_folder_name', picked.name);
-      // Full reload so the sync worker, inbound puller, and any live queries
-      // re-bind to the new folder cleanly — same behaviour the old AccountMenu
-      // version had.
+      // Full reload so every live query and the sync engine re-bind to the new
+      // folder cleanly. The persisted change token is scoped to the folder it
+      // was minted against, so the first pull after this correctly backfills.
       window.location.reload();
     } catch (err) {
       setPickError(err instanceof Error ? err.message : String(err));
     } finally {
       setPickBusy(false);
-    }
-  };
-
-  const handleSyncNow = async (): Promise<void> => {
-    if (!tripsAdmin) return;
-    setErrorMsg(null);
-    setSyncing(true);
-    try {
-      // Outbound first so any local edits land before we pull and risk a
-      // momentarily-inconsistent view. Inbound is best-effort and silent on
-      // failure; the outbound report already surfaces its own errors.
-      await tripsAdmin.syncNow();
-      if (pullDriveInbound) await pullDriveInbound();
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  /**
-   * "Resync from Drive" — the user's escape hatch when local Dexie drifts
-   * from the vault. Per the ADR-0014 addendum, backfill is now the only mode
-   * that enforces "Drive is source of truth": clear the change token so the
-   * next pullDriveInbound goes through the backfill path and runs the
-   * aggressive reconcileAll sweep.
-   *
-   * Outbound is flushed first so a draft trip the user just created doesn't
-   * get wiped by the sweep. Pending writes are also preserved by reconcileAll
-   * directly, but flushing first is the cheap belt-and-braces.
-   */
-  const handleResyncFromDrive = async (): Promise<void> => {
-    if (!tripsAdmin || !pullDriveInbound) return;
-    if (
-      !window.confirm(
-        'Resync from Drive will delete any local data that isn’t on Drive. Pending writes are preserved. Continue?',
-      )
-    ) {
-      return;
-    }
-    setErrorMsg(null);
-    setSyncing(true);
-    try {
-      await tripsAdmin.syncNow();
-      await deleteKV('drive_changes_page_token', db);
-      await pullDriveInbound();
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -247,25 +101,22 @@ export function SyncStatus(): React.JSX.Element | null {
             <div className="flex justify-between gap-2">
               <span className="text-on-surface-variant">Status</span>
               <span
-                className={`font-medium text-right ${
-                  hasError ? 'text-red-500' : syncing ? 'text-primary' : isSynced ? 'text-green-600' : 'text-amber-600'
-                }`}
+                className={`font-medium text-right ${statusClass}`}
                 data-testid="sync-status-text"
               >
                 {statusText}
               </span>
             </div>
-            {hasError && (
-              <div className="mt-1 flex flex-col gap-1">
-                {errorMsg && (
-                  <p className="text-on-surface-variant leading-snug">{errorMsg}</p>
-                )}
-                {firstPending?.last_error && (
-                  <p className="text-red-500 break-words font-mono text-[10px] bg-red-500/10 p-2 rounded">
-                    {firstPending.last_error}
-                  </p>
-                )}
-              </div>
+            {lastError && phase === 'error' && (
+              <p className="text-red-500 break-words font-mono text-[10px] bg-red-500/10 p-2 rounded">
+                {lastError}
+              </p>
+            )}
+            {dead > 0 && (
+              <p className="text-on-surface-variant leading-snug" data-testid="sync-dead-note">
+                {dead} change{dead === 1 ? '' : 's'} couldn’t be saved to Drive after repeated
+                attempts. They’re kept locally.
+              </p>
             )}
           </div>
 
@@ -279,25 +130,6 @@ export function SyncStatus(): React.JSX.Element | null {
               <FolderOpen className="h-4 w-4 shrink-0" />
               {pickBusy ? 'Opening picker…' : travelFolderId ? 'Change folder' : 'Set Drive folder'}
             </button>
-            <button
-              onClick={() => void handleSyncNow()}
-              disabled={syncing || !tripsAdmin || !travelFolderId}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-on-primary hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 disabled:opacity-60"
-              data-testid="sync-now"
-            >
-              <RefreshCw className={`h-4 w-4 shrink-0 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing…' : 'Sync now'}
-            </button>
-            <button
-              onClick={() => void handleResyncFromDrive()}
-              disabled={syncing || !tripsAdmin || !pullDriveInbound || !travelFolderId}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-variant transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 disabled:opacity-60"
-              data-testid="sync-resync-from-drive"
-              title="Drop any local data that isn’t on Drive (pending writes are preserved)."
-            >
-              <DownloadCloud className="h-4 w-4 shrink-0" />
-              Resync from Drive
-            </button>
             {pickError && (
               <p className="text-xs text-red-500" role="alert">
                 {pickError}
@@ -308,4 +140,74 @@ export function SyncStatus(): React.JSX.Element | null {
       )}
     </div>
   );
+}
+
+/**
+ * Icon + label for a phase. `error` is intentionally worded as a delay rather
+ * than a fault the user must act on: the engine keeps retrying on its own, so
+ * prompting for intervention would be both useless and untrue.
+ */
+function presentation(
+  phase: ReturnType<typeof useSyncState>['phase'],
+  pending: number,
+  dead: number,
+): {
+  Icon: typeof Cloud;
+  iconClass: string;
+  bgClass: string;
+  statusText: string;
+  statusClass: string;
+} {
+  if (phase === 'syncing') {
+    return {
+      Icon: RefreshCw,
+      iconClass: 'text-primary animate-spin',
+      bgClass: 'bg-primary/10',
+      statusText: 'Syncing…',
+      statusClass: 'text-primary',
+    };
+  }
+  if (phase === 'offline') {
+    return {
+      Icon: CloudOff,
+      iconClass: 'text-on-surface-variant',
+      bgClass: 'bg-surface-variant',
+      statusText: pending > 0 ? `Offline — ${pending} waiting` : 'Offline',
+      statusClass: 'text-on-surface-variant',
+    };
+  }
+  if (phase === 'error') {
+    return {
+      Icon: AlertTriangle,
+      iconClass: 'text-amber-500',
+      bgClass: 'bg-amber-500/10',
+      statusText: 'Retrying…',
+      statusClass: 'text-amber-600',
+    };
+  }
+  if (dead > 0) {
+    return {
+      Icon: AlertTriangle,
+      iconClass: 'text-red-500',
+      bgClass: 'bg-red-500/10',
+      statusText: `${dead} not saved`,
+      statusClass: 'text-red-500',
+    };
+  }
+  if (pending > 0) {
+    return {
+      Icon: Cloud,
+      iconClass: 'text-amber-500',
+      bgClass: 'bg-amber-500/10',
+      statusText: `${pending} pending`,
+      statusClass: 'text-amber-600',
+    };
+  }
+  return {
+    Icon: Cloud,
+    iconClass: 'text-green-500',
+    bgClass: 'bg-green-500/10',
+    statusText: 'Up to date',
+    statusClass: 'text-green-600',
+  };
 }

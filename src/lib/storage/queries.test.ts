@@ -286,7 +286,7 @@ describe('write_queue', () => {
     const peeked = await peekQueue(10, db);
     expect(peeked.map((r) => r.id)).toEqual(['01HQ1', '01HQ2']);
 
-    await recordQueueFailure('01HQ1', 'network down', db);
+    await recordQueueFailure('01HQ1', 'network down', {}, db);
     const peekedAfter = await peekQueue(10, db);
     const first = peekedAfter.find((r) => r.id === '01HQ1');
     expect(first?.attempts).toBe(1);

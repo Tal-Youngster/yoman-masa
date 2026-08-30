@@ -13,6 +13,7 @@ import {
   asFileId,
   asRevisionId,
   DriveApiError,
+  InvalidPageTokenError,
   type CreateFileInput,
   type DriveChange,
   type DriveChangeBatch,
@@ -54,6 +55,8 @@ export interface FakeDriveOptions {
   allowedPrefix?: string;
   /** Test hooks. */
   hooks?: FakeDriveHooks;
+  /** Entries per `getChanges` page. Defaults to 100 (Drive's own default). */
+  changePageSize?: number;
 }
 
 let idCounter = 0;
@@ -79,6 +82,7 @@ export class FakeDrive implements DriveClient {
 
   private clock: number;
   private readonly timeStep: number;
+  private readonly changePageSize: number;
 
   constructor(opts: FakeDriveOptions = {}) {
     const rootName = opts.rootName ?? 'MyVault';
@@ -86,6 +90,7 @@ export class FakeDrive implements DriveClient {
     this.clock = opts.initialTime ?? Date.parse('2026-01-01T00:00:00Z');
     this.timeStep = opts.timeStep ?? 1000;
     this.hooks = opts.hooks ?? {};
+    this.changePageSize = opts.changePageSize ?? 100;
 
     this.rootFolderId = this.seedFolder({ name: rootName, parents: [], path: rootName });
     // The Travel folder lives under the root.
@@ -285,11 +290,25 @@ export class FakeDrive implements DriveClient {
     return Promise.resolve({ id: travel.meta.id, name: travel.meta.name, path: travel.meta.path });
   }
 
+  /**
+   * Mirrors the real API's two-token contract (ADR-0019): pages of at most
+   * {@link FakeDrive.changePageSize} entries, `nextPageToken` while more
+   * remain, `newStartPageToken` only once the caller is caught up. Tests that
+   * assert token advancement depend on this distinction being real here.
+   */
   getChanges(pageToken: string): Promise<DriveChangeBatch> {
     const start = parseInt(pageToken, 10);
-    const from = Number.isFinite(start) && start >= 0 ? start : 0;
-    const slice = this.changes.slice(from);
-    return Promise.resolve({ changes: slice, nextPageToken: String(this.changes.length) });
+    if (!Number.isFinite(start) || start < 0 || start > this.changes.length) {
+      return Promise.reject(new InvalidPageTokenError(pageToken));
+    }
+    const end = Math.min(start + this.changePageSize, this.changes.length);
+    const slice = this.changes.slice(start, end);
+    const hasMore = end < this.changes.length;
+    return Promise.resolve({
+      changes: slice,
+      nextPageToken: hasMore ? String(end) : null,
+      newStartPageToken: hasMore ? null : String(this.changes.length),
+    });
   }
 
   startChangeToken(): Promise<string> {

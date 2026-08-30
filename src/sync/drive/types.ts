@@ -75,10 +75,24 @@ export interface DriveChange {
   removed: boolean;
 }
 
+/**
+ * One page of `changes.list`.
+ *
+ * The two tokens are deliberately separate fields rather than one "next
+ * token" string. Drive returns *exactly one* of them per page: `nextPageToken`
+ * while more pages remain, `newStartPageToken` on the final page. Collapsing
+ * them (`next ?? newStart ?? currentToken`) is what caused the pre-ADR-0019
+ * hang — the fallback silently re-emitted the token that was passed in, so
+ * the caller "advanced" to where it already was and replayed the same window
+ * forever. Keeping them apart makes "no progress" a `null` the caller must
+ * handle rather than an identity it cannot detect. See ADR-0019.
+ */
 export interface DriveChangeBatch {
   changes: readonly DriveChange[];
-  /** Token for the next call. Caller persists it. */
-  nextPageToken: string;
+  /** Non-null when more pages remain. Feed it back into `getChanges`. */
+  nextPageToken: string | null;
+  /** Non-null only on the final page: "caught up". This is the one to persist. */
+  newStartPageToken: string | null;
 }
 
 export interface FolderPick {
@@ -162,6 +176,20 @@ export class ReauthRequiredError extends Error {
   override readonly name = 'ReauthRequiredError';
   constructor(reason: string) {
     super(`Reauthentication required: ${reason}`);
+  }
+}
+
+/**
+ * Thrown when Drive rejects a `changes.list` page token (404 / 410). Tokens
+ * expire, and one minted against a different folder or a since-purged change
+ * log is unusable. The pull worker treats this as "drop the token and
+ * backfill" rather than an error — it is the self-healing path that replaced
+ * the manual "Resync from Drive" button (ADR-0019).
+ */
+export class InvalidPageTokenError extends Error {
+  override readonly name = 'InvalidPageTokenError';
+  constructor(readonly pageToken: string) {
+    super(`Drive rejected change page token "${pageToken}" — a full backfill is required.`);
   }
 }
 

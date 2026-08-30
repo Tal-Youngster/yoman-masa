@@ -14,6 +14,7 @@ export {
   WriteOutOfScopeError,
   ConflictExhaustedError,
   EditPointMissingError,
+  InvalidPageTokenError,
   ReauthRequiredError,
   DriveApiError,
   asFileId,

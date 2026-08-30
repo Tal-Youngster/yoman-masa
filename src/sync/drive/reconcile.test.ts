@@ -38,6 +38,8 @@ function makeItem(
     attempts: 0,
     lastError: null,
     createdAt: '2026-05-01T00:00:00Z',
+    nextAttemptAt: 0,
+    dead: false,
     resolvedPath: 'MyVault/Travel/marker.md',
     ...overrides,
   };

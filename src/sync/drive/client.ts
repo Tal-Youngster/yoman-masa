@@ -16,6 +16,7 @@ import {
   asFileId,
   asRevisionId,
   DriveApiError,
+  InvalidPageTokenError,
   type CreateFileInput,
   type DriveChange,
   type DriveChangeBatch,
@@ -166,14 +167,30 @@ export class RealDriveClient implements DriveClient {
   }
 
   async getChanges(pageToken: string): Promise<DriveChangeBatch> {
+    // `newStartPageToken` MUST stay in this mask. Drive returns only the
+    // fields you name, and it is the *only* signal that we have caught up —
+    // omitting it means the token never advances and every pull replays the
+    // whole (unboundedly growing) change window. That was the ADR-0019 hang.
     const url =
       `${API}/changes?pageToken=${encodeURIComponent(pageToken)}` +
-      `&fields=${encodeURIComponent(`nextPageToken,changes(removed,fileId,file(${META_FIELDS}))`)}`;
-    const raw = await this.api<{
+      `&fields=${encodeURIComponent(
+        `nextPageToken,newStartPageToken,changes(removed,fileId,file(${META_FIELDS}))`,
+      )}`;
+    let raw: {
       nextPageToken?: string;
       newStartPageToken?: string;
       changes?: { removed?: boolean; fileId?: string; file?: RawDriveFile }[];
-    }>(url, { method: 'GET' });
+    };
+    try {
+      raw = await this.api(url, { method: 'GET' });
+    } catch (err) {
+      // 404/410 = the token is expired or was minted against state Drive no
+      // longer has. Not a transient failure — recoverable only by backfill.
+      if (err instanceof DriveApiError && (err.status === 404 || err.status === 410)) {
+        throw new InvalidPageTokenError(pageToken);
+      }
+      throw err;
+    }
 
     const changes: DriveChange[] = await Promise.all(
       (raw.changes ?? []).map(async (c): Promise<DriveChange> => {
@@ -188,7 +205,8 @@ export class RealDriveClient implements DriveClient {
     );
     return {
       changes,
-      nextPageToken: raw.nextPageToken ?? raw.newStartPageToken ?? pageToken,
+      nextPageToken: raw.nextPageToken ?? null,
+      newStartPageToken: raw.newStartPageToken ?? null,
     };
   }
 

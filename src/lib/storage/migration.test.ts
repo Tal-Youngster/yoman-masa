@@ -10,7 +10,7 @@ import { TravelDB } from './db';
 import { deleteDatabase } from './test-helpers';
 
 /** Current schema version of the real `TravelDB`. */
-const CURRENT_VERSION = 5;
+const CURRENT_VERSION = 6;
 
 /**
  * Historical stores, replayed verbatim so a legacy DB can be constructed. These
@@ -186,6 +186,8 @@ describe('Schema migration v2 → v3', () => {
       attempts: 0,
       last_error: null,
       created_at: Date.now(),
+      next_attempt_at: 0,
+      dead: 0,
     });
     v2.close();
 
@@ -227,6 +229,8 @@ describe('Schema migration v2 → v3', () => {
       attempts: 0,
       last_error: null,
       created_at: Date.now(),
+      next_attempt_at: 0,
+      dead: 0,
     });
 
     // The new index `file_id` is queryable on a fresh DB.
@@ -335,6 +339,8 @@ describe('Schema migration v4 → v5 (expenses removal, ADR-0018)', () => {
         attempts: 0,
         last_error: null,
         created_at: Date.now(),
+        next_attempt_at: 0,
+        dead: 0,
       },
       {
         id: 'queued-trip',
@@ -348,6 +354,8 @@ describe('Schema migration v4 → v5 (expenses removal, ADR-0018)', () => {
         attempts: 0,
         last_error: null,
         created_at: Date.now(),
+        next_attempt_at: 0,
+        dead: 0,
       },
     ]);
     await v4.table('file_meta').put({

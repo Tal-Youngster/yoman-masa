@@ -3,8 +3,7 @@ import type { KVStore } from './kv-store';
 import type { TripsStore } from './trips-store';
 import type { DriveClient } from '@/sync/drive';
 import type { WriteQueue } from '@/sync/queue';
-import type { SyncReport } from '@/sync/queue';
-import type { PullReport } from '@/sync/pull';
+import type { SyncEngine } from '@/sync/engine';
 import type { AiClient } from '@/lib/ai/client';
 import type { GmailClient } from '@/lib/gmail';
 import type { TasksAdminService } from '@/features/tasks';
@@ -44,8 +43,6 @@ export interface TripsAdminService {
   deleteTrip(tripId: string): Promise<void>;
   /** Set the active trip + enqueue the .travel/config.json write. */
   setActiveTrip(tripId: string | null): Promise<void>;
-  /** Drain the write queue against Drive. Used by the "Sync now" button. */
-  syncNow(): Promise<SyncReport | null>;
 }
 
 export interface AppServices {
@@ -68,12 +65,12 @@ export interface AppServices {
   /** Articles mutation surface (S12). Optional so tests can stub. */
   articlesAdmin?: ArticlesAdminService;
   /**
-   * Inbound Drive → Dexie sync (ADR-0014). Resolves the configured Travel
-   * folder, runs `pullAll` against the inbound registry, and returns the
-   * report. Returns `null` if no folder is configured or sync is unavailable.
-   * Optional so tests + shells without a real Drive can render.
+   * Continuous sync engine (ADR-0019). Owns every push/pull trigger; the UI
+   * only observes it. There is deliberately no imperative "sync now" surface
+   * — enqueueing a write is itself the trigger. Optional so tests and shells
+   * without a real Drive can render.
    */
-  pullDriveInbound?: () => Promise<PullReport | null>;
+  sync?: SyncEngine;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

@@ -76,6 +76,7 @@ docs/adr/        # Architecture Decision Records (0001-0010 are locked)
 - Don't store refresh tokens client-side. Use GIS implicit token client + silent re-auth on focus.
 - Don't write to Drive outside `<vault>/Travel/`. The `WRITE_ALLOWED_PREFIX` guard in `src/sync/drive/` is mandatory and tested.
 - Don't blind-overwrite a Drive file. Re-fetch `headRevisionId` before write; if it changed, re-apply the structured edit and retry (budget 3, exponential backoff). See ADR-0006.
+- Don't add a "sync"/"refresh"/"resync" control, and don't call sync from a component. Drive behaves like a database: `src/sync/engine.ts` owns every trigger, and enqueueing a write is itself the trigger. See ADR-0019.
 - Don't reinvent decisions in `docs/adr/`. Propose changing the ADR first.
 - Don't use Node-only APIs in `src/domain/` or `src/lib/`. These modules must run in **both** Node (tests) and the browser.
 - Don't add unnecessary abstractions or speculative features. Build for what's in the slice spec.
@@ -98,7 +99,7 @@ The data model and auth choices were made so these don't require a rewrite later
 | Why full Drive scope?                   | ADR-0003 |
 | Markdown conventions (Tasks, Dataview)? | ADR-0004 |
 | Why MapLibre + PMTiles?                 | ADR-0005 — **superseded by ADR-0013** |
-| Conflict resolution algorithm?          | ADR-0006 |
+| Conflict resolution algorithm?          | ADR-0006 — retry policy **amended by ADR-0019** |
 | Identity?                               | ADR-0007 |
 | FX rate source + snapshot conversions?  | ADR-0008 — **superseded by ADR-0018** |
 | Hosting + secrets?                      | ADR-0009 |
@@ -106,11 +107,12 @@ The data model and auth choices were made so these don't require a rewrite later
 | Task recurrence model?                  | ADR-0011 |
 | Task manual order?                      | ADR-0012 |
 | Why Google Maps (replaces ADR-0005)?    | ADR-0013 |
-| Inbound Drive → Dexie sync?             | ADR-0014 |
+| Inbound Drive → Dexie sync?             | ADR-0014 — **superseded by ADR-0019** |
 | Path map rendering on Google Maps?      | ADR-0015 — **superseded by ADR-0017** |
 | Gmail read integration (accommodations)?| ADR-0016 |
 | Trip-centric navigation + UI refactor?  | ADR-0017 |
 | Why no expenses feature?                | ADR-0018 |
+| How does sync run (no sync buttons)?    | ADR-0019 |
 
 ## When to ask the user
 

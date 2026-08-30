@@ -31,6 +31,8 @@ function queueItem(item: ShoppingItem, op: WriteOp): WriteQueueItem<ShoppingItem
     attempts: 0,
     lastError: null,
     createdAt: '2026-06-06T00:00:00.000Z',
+    nextAttemptAt: 0,
+    dead: false,
   };
 }
 
