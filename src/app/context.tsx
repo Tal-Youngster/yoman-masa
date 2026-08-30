@@ -9,6 +9,7 @@ import type { AiClient } from '@/lib/ai/client';
 import type { GmailClient } from '@/lib/gmail';
 import type { TasksAdminService } from '@/features/tasks';
 import type { ShoppingAdminService } from '@/features/shopping';
+import type { ArticlesAdminService } from '@/features/articles';
 
 /**
  * Side-effectful trip-creation surface. The trips slice's UI calls this
@@ -64,6 +65,8 @@ export interface AppServices {
   tasksAdmin?: TasksAdminService;
   /** Shopping mutation surface (S11). Optional so tests can stub. */
   shoppingAdmin?: ShoppingAdminService;
+  /** Articles mutation surface (S12). Optional so tests can stub. */
+  articlesAdmin?: ArticlesAdminService;
   /**
    * Inbound Drive → Dexie sync (ADR-0014). Resolves the configured Travel
    * folder, runs `pullAll` against the inbound registry, and returns the

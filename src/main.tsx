@@ -21,6 +21,7 @@ import { registerAccommodationReconcilers } from './features/accommodations/regi
 import { registerPlaceReconcilers } from './features/places/register';
 import { registerTaskReconcilers, createTasksAdmin } from './features/tasks';
 import { registerShoppingReconcilers, createShoppingAdmin } from './features/shopping';
+import { registerArticleReconcilers, createArticlesAdmin } from './features/articles';
 import './index.css';
 
 registerTripReconcilers();
@@ -28,6 +29,7 @@ registerAccommodationReconcilers();
 registerPlaceReconcilers();
 registerTaskReconcilers();
 registerShoppingReconcilers();
+registerArticleReconcilers();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
@@ -166,6 +168,12 @@ const shoppingAdmin = createShoppingAdmin({
   travelFolderPath: TRAVEL_PREFIX,
 });
 
+const articlesAdmin = createArticlesAdmin({
+  db,
+  writeQueue,
+  travelFolderPath: TRAVEL_PREFIX,
+});
+
 /**
  * Inbound Drive → Dexie pull (ADR-0014). Resolves the configured Travel
  * folder from KV on each call so a re-pick during the session is picked up
@@ -195,6 +203,7 @@ const services = {
   tripsAdmin,
   tasksAdmin,
   shoppingAdmin,
+  articlesAdmin,
   drive,
   writeQueue,
   pullDriveInbound,
