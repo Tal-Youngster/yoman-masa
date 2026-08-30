@@ -42,6 +42,44 @@ describe('RealGmailClient', () => {
     expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({ headers: { Authorization: 'Bearer tok' } });
   });
 
+  it('searches all mail with the raw query and no INBOX filter', async () => {
+    const seen: string[] = [];
+    const fetchImpl = (input: RequestInfo | URL): Promise<Response> => {
+      const u = urlOf(input);
+      seen.push(u);
+      if (u.includes('/messages?')) return Promise.resolve(jsonResponse({ messages: [{ id: 'a' }] }));
+      return Promise.resolve(
+        jsonResponse({
+          id: 'a',
+          internalDate: '1700000000000',
+          payload: { headers: [{ name: 'Subject', value: 'Your booking' }] },
+        }),
+      );
+    };
+    const client = new RealGmailClient({ getAccessToken: () => Promise.resolve('tok'), fetchImpl });
+
+    const hits = await client.searchMessages('from:booking.com hotel', 5);
+    expect(hits.map((m) => m.subject)).toEqual(['Your booking']);
+    const listUrl = seen[0] ?? '';
+    expect(listUrl).toContain('q=from%3Abooking.com%20hotel');
+    expect(listUrl).toContain('maxResults=5');
+    // Archived confirmations must be findable, so the search is not INBOX-scoped.
+    expect(listUrl).not.toContain('labelIds');
+  });
+
+  it('falls back to the recent inbox for a blank query', async () => {
+    const seen: string[] = [];
+    const fetchImpl = (input: RequestInfo | URL): Promise<Response> => {
+      seen.push(urlOf(input));
+      return Promise.resolve(jsonResponse({ messages: [] }));
+    };
+    const client = new RealGmailClient({ getAccessToken: () => Promise.resolve('tok'), fetchImpl });
+
+    await client.searchMessages('   ');
+    expect(seen[0]).toContain('labelIds=INBOX');
+    expect(seen[0]).not.toContain('q=');
+  });
+
   it('decodes the body of a fetched message', async () => {
     const fetchImpl = (): Promise<Response> =>
       Promise.resolve(

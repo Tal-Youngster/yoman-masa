@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button } from '@/ui/components';
+import { Button, Input } from '@/ui/components';
 import { useAppServices } from '@/app/use-app-services';
 import { GmailAuthError, type GmailMessageMeta } from '@/lib/gmail';
 import { AI_PROMPT, sanitizeExtracted, type AiExtractedData } from '../ai-extraction';
@@ -28,6 +28,10 @@ export function GmailPicker({ onExtracted, onBack }: GmailPickerProps): React.JS
   const [extractingId, setExtractingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsReconnect, setNeedsReconnect] = useState(false);
+  const [draftQuery, setDraftQuery] = useState('');
+  // Submitted query — searching costs a round trip, so it runs on submit
+  // rather than on every keystroke.
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     if (!gmail) {
@@ -35,9 +39,11 @@ export function GmailPicker({ onExtracted, onBack }: GmailPickerProps): React.JS
       return;
     }
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     void (async () => {
       try {
-        const list = await gmail.listRecentInbox();
+        const list = query ? await gmail.searchMessages(query) : await gmail.listRecentInbox();
         if (!cancelled) setMessages(list);
       } catch (err) {
         if (cancelled) return;
@@ -50,7 +56,17 @@ export function GmailPicker({ onExtracted, onBack }: GmailPickerProps): React.JS
     return () => {
       cancelled = true;
     };
-  }, [gmail]);
+  }, [gmail, query]);
+
+  function handleSearch(ev: React.FormEvent) {
+    ev.preventDefault();
+    setQuery(draftQuery.trim());
+  }
+
+  function handleClearSearch() {
+    setDraftQuery('');
+    setQuery('');
+  }
 
   async function handlePick(id: string) {
     if (!gmail || !ai) return;
@@ -78,6 +94,36 @@ export function GmailPicker({ onExtracted, onBack }: GmailPickerProps): React.JS
         </Button>
       </div>
 
+      {gmail && !needsReconnect && (
+        <form className="flex items-end gap-2" onSubmit={handleSearch}>
+          <div className="flex-1">
+            <Input
+              type="search"
+              enterKeyHint="search"
+              placeholder="Search mail (e.g. from:booking.com)"
+              aria-label="Search mailbox"
+              value={draftQuery}
+              onChange={(e) => setDraftQuery(e.target.value)}
+              disabled={extractingId !== null}
+              className="bg-surface-container-lowest"
+            />
+          </div>
+          <Button type="submit" variant="secondary" disabled={extractingId !== null || loading}>
+            Search
+          </Button>
+          {query && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClearSearch}
+              disabled={extractingId !== null}
+            >
+              Clear
+            </Button>
+          )}
+        </form>
+      )}
+
       {!gmail ? (
         <p className="text-xs text-on-surface-variant border border-outline-variant p-3 rounded-lg">
           Gmail isn’t connected. Sign in with Google (with the vault) to import from your inbox.
@@ -87,7 +133,9 @@ export function GmailPicker({ onExtracted, onBack }: GmailPickerProps): React.JS
           Gmail access needs reconnecting. Reconnect your Google account, then try again.
         </p>
       ) : loading ? (
-        <p className="text-sm text-on-surface-variant text-center py-6">Loading inbox…</p>
+        <p className="text-sm text-on-surface-variant text-center py-6">
+          {query ? 'Searching…' : 'Loading inbox…'}
+        </p>
       ) : messages && messages.length > 0 ? (
         <ul className="flex flex-col gap-1 max-h-80 overflow-y-auto">
           {messages.map((m) => (
@@ -111,7 +159,9 @@ export function GmailPicker({ onExtracted, onBack }: GmailPickerProps): React.JS
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-on-surface-variant text-center py-6">No recent inbox messages.</p>
+        <p className="text-sm text-on-surface-variant text-center py-6">
+          {query ? `No mail matches “${query}”.` : 'No recent inbox messages.'}
+        </p>
       )}
 
       {error && <p className="text-xs text-red-400 text-center">{error}</p>}

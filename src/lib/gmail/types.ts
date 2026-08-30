@@ -22,6 +22,13 @@ export interface GmailMessageMeta {
 export interface GmailClient {
   /** Newest INBOX messages, metadata only. */
   listRecentInbox(max?: number): Promise<readonly GmailMessageMeta[]>;
+  /**
+   * Metadata for messages matching a Gmail search query. Spans the whole
+   * mailbox, not just INBOX — confirmations are often archived or labelled by
+   * the time the trip is being planned. `query` is passed to Gmail verbatim,
+   * so operators (`from:`, `subject:`, `after:`) work.
+   */
+  searchMessages(query: string, max?: number): Promise<readonly GmailMessageMeta[]>;
   /** Decoded body text of one message (text/plain, falling back to stripped HTML). */
   getMessageText(id: string): Promise<string>;
 }
