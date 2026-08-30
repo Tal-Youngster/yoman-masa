@@ -1,6 +1,7 @@
 # ADR 0014: Inbound Drive sync — change-feed pull + backfill
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0019 (triggers + orchestration; the inbound
+  reconciler contract and the backfill source-of-truth sweep remain in force)
 - **Date:** 2026-05-28
 
 ## Context
