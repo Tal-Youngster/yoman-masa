@@ -12,7 +12,7 @@ Personal travel companion. Installable PWA for phone + laptop. Offline-first. Ta
 - **Dexie** as the local read cache and write queue
 - **Zod** for entity schemas (single source of truth, used for parsing markdown)
 - **Zustand** for ephemeral UI state
-- **MapLibre GL + Protomaps PMTiles** for offline-capable maps
+- **Google Maps** (`@vis.gl/react-google-maps`) + **Places API (New)** for map surfaces (ADR-0013)
 - **Google Drive API** as the only sync backend; OAuth implicit flow via Google Identity Services
 - **Frankfurter** for FX rates (cached)
 - **Vitest** + **fast-check** for unit/property tests
@@ -83,7 +83,7 @@ cp .env.example .env.local
 | --- | --- | --- |
 | `VITE_GOOGLE_CLIENT_ID` | yes | OAuth client ID. Public by design (implicit flow). |
 | `VITE_GOOGLE_API_KEY` | yes | Drive Picker API key. Public by design. |
-| `VITE_PROTOMAPS_API_KEY` | for maps | Basemap tiles on the Places tab. |
+| `VITE_GOOGLE_MAP_ID` | no | Cloud-configured Map ID for Advanced Markers. Falls back to Google's `DEMO_MAP_ID`. |
 | `VITE_GEMINI_API_KEY` | for AI | **Billable** and ends up in the client bundle — restrict it in Google Cloud or omit to disable AI. |
 
 If `VITE_GOOGLE_CLIENT_ID` / `VITE_GOOGLE_API_KEY` are absent, the app falls back to an in-memory fake Drive (no real sync).
@@ -116,7 +116,7 @@ Host: **Cloudflare Workers** (Static Assets), configured in `wrangler.jsonc` (`a
 
 ### Continuous deploy (recommended)
 
-`.github/workflows/ci.yml` runs typecheck + lint + test + build on every PR, and on push to `main` it additionally **builds and deploys** to Cloudflare via `cloudflare/wrangler-action`. Because `VITE_*` are baked in at build time, the real values live in **GitHub repo secrets** (Settings → Secrets and variables → Actions):
+`.github/workflows/ci.yml` runs typecheck + lint + test + build on every PR, and on push to `main` it additionally **builds and deploys** to Cloudflare via `cloudflare/wrangler-action`. Because `VITE_*` are baked in at build time, the real values live in **GitHub repo secrets** (Settings → Secrets and variables → **Actions → Secrets**). The workflow reads `secrets.*` only — a value stored on the *Variables* tab resolves to empty:
 
 | Secret | What |
 | --- | --- |
@@ -124,10 +124,12 @@ Host: **Cloudflare Workers** (Static Assets), configured in `wrangler.jsonc` (`a
 | `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID. |
 | `VITE_GOOGLE_CLIENT_ID` | OAuth client ID. |
 | `VITE_GOOGLE_API_KEY` | Drive Picker key. |
-| `VITE_PROTOMAPS_API_KEY` | Map tiles (optional). |
+| `VITE_GOOGLE_MAP_ID` | Maps Map ID (optional). |
 | `VITE_GEMINI_API_KEY` | AI features (optional). |
 
 Create the API token at <https://dash.cloudflare.com/profile/api-tokens> using the **Edit Cloudflare Workers** template. Push to `main` → the app deploys.
+
+**After rotating a key**, changing the secret does nothing on its own — the deployed bundle still holds the old value, since `VITE_*` are baked in at build time. Trigger a rebuild: Actions → CI → **Run workflow** on `main` (or re-run the last `main` run).
 
 ### Manual deploy
 
