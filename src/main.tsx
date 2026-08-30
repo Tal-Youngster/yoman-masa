@@ -10,11 +10,10 @@ import {
   RealDriveClient,
   openFolderPicker,
   FakeDrive,
-  asFileId,
   type AuthPersistence,
 } from './sync/drive';
 import { createDexieWriteQueue } from './sync/queue';
-import { inboundReconcilers, pullAll, type PullReport } from './sync/pull';
+import { createSyncEngine } from './app/create-sync-engine';
 import { db } from './lib/storage';
 import { registerTripReconcilers } from './features/trips/register';
 import { registerAccommodationReconcilers } from './features/accommodations/register';
@@ -138,22 +137,21 @@ const writeQueue = createDexieWriteQueue(db);
 // reload, which is fine — re-listing is idempotent.
 const folderCache = new Map<string, string>();
 
+async function resolveParent(item: Parameters<typeof resolveParentHelper>[0]) {
+  const travelFolder = await kv.get('travel_folder_file_id');
+  if (!travelFolder) return null;
+  return resolveParentHelper(item, {
+    drive,
+    travelFolderId: travelFolder,
+    allowedPrefix: TRAVEL_PREFIX,
+    folderCache,
+  });
+}
+
 const tripsAdmin = createTripsAdmin({
   db,
   writeQueue,
-  drive,
   travelFolderPath: TRAVEL_PREFIX,
-  travelFolderId: asFileId(''), // Placeholder, overriden by resolveParent
-  resolveParent: async (item) => {
-    const travelFolder = await kv.get('travel_folder_file_id');
-    if (!travelFolder) return null;
-    return resolveParentHelper(item, {
-      drive,
-      travelFolderId: travelFolder,
-      allowedPrefix: TRAVEL_PREFIX,
-      folderCache,
-    });
-  },
 });
 
 const tasksAdmin = createTasksAdmin({
@@ -175,27 +173,10 @@ const articlesAdmin = createArticlesAdmin({
 });
 
 /**
- * Inbound Drive → Dexie pull (ADR-0014). Resolves the configured Travel
- * folder from KV on each call so a re-pick during the session is picked up
- * naturally; returns null if no folder is configured or the pull throws.
- * The hard error path is intentionally silent — SyncStatus already surfaces
- * outbound failures, and an inbound failure during a focus event shouldn't
- * pop a toast over the user's tab.
+ * The sync engine (ADR-0019). Owns every push/pull trigger; nothing in the UI
+ * initiates sync. `Shell` starts it on mount.
  */
-async function pullDriveInbound(): Promise<PullReport | null> {
-  try {
-    const folder = await kv.get('travel_folder_file_id');
-    if (!folder) return null;
-    return await pullAll({
-      drive,
-      db,
-      travelFolderId: asFileId(folder),
-      registry: inboundReconcilers,
-    });
-  } catch {
-    return null;
-  }
-}
+const sync = createSyncEngine({ db, kv, drive, writeQueue, resolveParent });
 
 const services = {
   kv,
@@ -206,7 +187,7 @@ const services = {
   articlesAdmin,
   drive,
   writeQueue,
-  pullDriveInbound,
+  sync,
   ...(geminiKey ? { ai: new GeminiClient(geminiKey) } : {}),
   ...(gmail ? { gmail } : {}),
 };

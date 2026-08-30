@@ -31,6 +31,8 @@ function item(task: Task, op: WriteOp): WriteQueueItem<TaskPayload> {
     attempts: 0,
     lastError: null,
     createdAt: '2026-05-24T00:00:00.000Z',
+    nextAttemptAt: 0,
+    dead: false,
   };
 }
 

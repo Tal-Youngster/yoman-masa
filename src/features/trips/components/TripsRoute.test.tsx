@@ -70,7 +70,6 @@ function makeAdminStub(overrides: Partial<TripsAdminService> = {}): TripsAdminSe
     updateTrip: Array<Parameters<TripsAdminService['updateTrip']>[0]>;
     deleteTrip: Array<Parameters<TripsAdminService['deleteTrip']>[0]>;
     setActiveTrip: Array<Parameters<TripsAdminService['setActiveTrip']>[0]>;
-    syncNow: number;
   };
 } {
   const calls = {
@@ -78,7 +77,6 @@ function makeAdminStub(overrides: Partial<TripsAdminService> = {}): TripsAdminSe
     updateTrip: [] as Array<Parameters<TripsAdminService['updateTrip']>[0]>,
     deleteTrip: [] as Array<Parameters<TripsAdminService['deleteTrip']>[0]>,
     setActiveTrip: [] as Array<Parameters<TripsAdminService['setActiveTrip']>[0]>,
-    syncNow: 0,
   };
   return {
     createTrip:
@@ -104,19 +102,6 @@ function makeAdminStub(overrides: Partial<TripsAdminService> = {}): TripsAdminSe
       ((id) => {
         calls.setActiveTrip.push(id);
         return Promise.resolve();
-      }),
-    syncNow:
-      overrides.syncNow ??
-      (() => {
-        calls.syncNow += 1;
-        return Promise.resolve({
-          processed: 0,
-          applied: 0,
-          retried: 0,
-          blocked: 0,
-          deadLettered: 0,
-          skipped: 0,
-        });
       }),
     calls,
   };

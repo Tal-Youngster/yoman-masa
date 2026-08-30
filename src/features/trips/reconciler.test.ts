@@ -38,6 +38,8 @@ function tripItem(
     attempts: 0,
     lastError: null,
     createdAt: '2026-05-01T00:00:00.000Z',
+    nextAttemptAt: 0,
+    dead: false,
     ...overrides,
   };
 }
