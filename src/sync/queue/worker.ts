@@ -13,8 +13,9 @@
  *  - On other errors: mark transient. The queue implementation decides re-enqueue
  *    vs dead-letter based on attempt count.
  *
- * Triggers (caller wires these up): `syncNow()`, `online`, `focus`,
- * `BackgroundSync`. The worker itself is just `processOne` / `drainAll`.
+ * Scheduling is not this module's job: `src/sync/engine.ts` owns triggers,
+ * pass-level backoff and coalescing (ADR-0019). The worker is just
+ * `processItem` / `drainAll`.
  */
 
 import {
@@ -131,8 +132,21 @@ export async function processItem(
 }
 
 /**
- * Drain the queue end-to-end. Stops at the first empty `drainNext` or when
- * `signal.aborted` is true. Returns a summary report.
+ * Drain the queue end-to-end. Stops when `drainNext` reports nothing ready,
+ * when `signal.aborted` is true, or on a `blocked` outcome. Returns a summary.
+ *
+ * A transient failure no longer stops the drain (ADR-0019). The failing item
+ * is given a backoff deadline by the queue adapter and the loop moves on to
+ * the next ready row; `drainNext` won't hand back a row that is still backing
+ * off, so this terminates. Pre-ADR-0019 the first `retry` returned early,
+ * which meant one poisoned write froze every unrelated write behind it for as
+ * long as it kept failing — i.e. forever.
+ *
+ * `blocked` is the one case that still stops the pass, and only because it is
+ * a *global* precondition failure: the Travel folder isn't configured or is
+ * inaccessible, so every remaining item would fail identically and cost a
+ * round-trip to learn it. The item itself is marked non-terminally and backs
+ * off like any other, so re-picking the folder resumes it.
  */
 export async function drainAll(opts: WorkerOptions, signal?: AbortSignal): Promise<SyncReport> {
   const report: SyncReport = {
@@ -165,12 +179,9 @@ export async function drainAll(opts: WorkerOptions, signal?: AbortSignal): Promi
       case 'retry':
         report.retried += 1;
         await opts.queue.markFailed(item.id, outcome.error, false);
-        return report; // Queue stalls on transient failure
+        break; // Back off this item only; keep draining the rest.
       case 'blocked':
         report.blocked += 1;
-        // Non-terminal: keep the item so it resumes once the user re-picks the
-        // folder. Stall the drain — every item shares this parent, so the rest
-        // would block too.
         await opts.queue.markFailed(item.id, outcome.error, false);
         return report;
       case 'dead-letter':

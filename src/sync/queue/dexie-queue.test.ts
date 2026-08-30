@@ -7,6 +7,8 @@ import { enqueueWrite, peekQueue } from '@/lib/storage';
 import { FakeDrive } from '../drive/fake.js';
 import { EditPointMissingError, type FileId } from '../drive/types.js';
 
+import { MAX_ATTEMPTS } from '../backoff.js';
+
 import { createDexieWriteQueue, rowToItem } from './dexie-queue.js';
 import { ReconcilerRegistry, type Reconciler } from './reconciler.js';
 import { drainAll } from './worker.js';
@@ -35,6 +37,8 @@ function makeItem(overrides: Partial<WriteQueueItem> & { id: string }): WriteQue
     attempts: 0,
     lastError: null,
     createdAt: '2026-05-01T00:00:00.000Z',
+    nextAttemptAt: 0,
+    dead: false,
     ...overrides,
   };
 }
@@ -65,8 +69,15 @@ describe('createDexieWriteQueue', () => {
     const [row] = await peekQueue(10, db);
     expect(row?.attempts).toBe(1);
     expect(row?.last_error).toBe('network glitch');
+    // Alive, but deferred — the retry deadline is in the future.
+    expect(row?.dead).toBe(0);
+    expect(row?.next_attempt_at).toBeGreaterThan(Date.now());
 
-    // The row is still drainable.
+    // Not drainable until the backoff elapses. Rewind the deadline rather
+    // than sleeping so the test stays fast and deterministic.
+    expect(await queue.drainNext()).toBeNull();
+    await db.write_queue.update('X', { next_attempt_at: 0 });
+
     const back = await queue.drainNext();
     expect(back?.id).toBe('X');
     expect(back?.attempts).toBe(1);
@@ -76,12 +87,43 @@ describe('createDexieWriteQueue', () => {
     expect(await queue.drainNext()).toBeNull();
   });
 
-  it('markFailed(terminal=true) removes the row (dead-letter)', async () => {
+  it('markFailed(terminal=true) retires the row but keeps it (ADR-0019)', async () => {
     const queue = createDexieWriteQueue(db);
     await queue.enqueue(makeItem({ id: 'DEAD' }));
     await queue.markFailed('DEAD', 'no reconciler', true);
+
+    // Undrainable...
     expect(await queue.drainNext()).toBeNull();
-    expect(await peekQueue(10, db)).toEqual([]);
+    // ...but retained. Deleting it would silently discard the user's edit.
+    const [row] = await peekQueue(10, db);
+    expect(row?.id).toBe('DEAD');
+    expect(row?.dead).toBe(1);
+    expect(row?.last_error).toBe('no reconciler');
+  });
+
+  it('markFailed(terminal=false) defers the row instead of blocking the queue', async () => {
+    const queue = createDexieWriteQueue(db);
+    await queue.enqueue(makeItem({ id: 'BAD', createdAt: '2026-05-01T00:00:00.000Z' }));
+    await queue.enqueue(makeItem({ id: 'NEXT', createdAt: '2026-05-01T00:00:01.000Z' }));
+
+    // Fail the FIFO head. Pre-ADR-0019 this pinned the head and 'NEXT' could
+    // never be reached; now the head simply backs off and is stepped over.
+    const head = await queue.drainNext();
+    expect(head?.id).toBe('BAD');
+    await queue.markFailed('BAD', 'network glitch', false);
+
+    expect((await queue.drainNext())?.id).toBe('NEXT');
+  });
+
+  it('retires a row once it exhausts MAX_ATTEMPTS transient failures', async () => {
+    const queue = createDexieWriteQueue(db);
+    await queue.enqueue(makeItem({ id: 'POISON', attempts: MAX_ATTEMPTS - 1 }));
+    await queue.markFailed('POISON', 'still broken', false);
+
+    const [row] = await peekQueue(10, db);
+    expect(row?.attempts).toBe(MAX_ATTEMPTS);
+    expect(row?.dead).toBe(1);
+    expect(await queue.drainNext()).toBeNull();
   });
 
   it('refuses to forward v2-migration rows with empty resolved_path; dequeues them silently', async () => {
@@ -98,6 +140,8 @@ describe('createDexieWriteQueue', () => {
         file_id: null,
         resolved_path: '', // <-- dead-letter sentinel
         created_at: Date.parse('2026-04-01T00:00:00.000Z'),
+        next_attempt_at: 0,
+        dead: 0,
       },
       db,
     );
@@ -146,6 +190,8 @@ describe('createDexieWriteQueue', () => {
       attempts: 3,
       lastError: 'before',
       createdAt: '2026-04-15T12:34:56.000Z',
+      nextAttemptAt: 0,
+      dead: false,
     });
   });
 });
@@ -164,6 +210,8 @@ describe('rowToItem mapping (unit)', () => {
       attempts: 2,
       last_error: 'e',
       created_at: Date.parse('2026-01-02T03:04:05.000Z'),
+      next_attempt_at: 0,
+      dead: 0,
     });
     expect(item.createdAt).toBe('2026-01-02T03:04:05.000Z');
     expect(item.entityType).toBe('trip');

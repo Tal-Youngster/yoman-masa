@@ -23,7 +23,7 @@ import {
   deleteFileMeta,
   enqueueWrite,
   getFileMeta,
-  peekNextPending,
+  listReadyWrites,
   recordQueueFailure,
   upsertFileMeta,
   type EnqueueInput,
@@ -31,7 +31,9 @@ import {
   type WriteQueueItem as DexieWriteQueueItem,
 } from '@/lib/storage';
 
-import type { WriteQueue, WriteQueueItem } from './types.js';
+import { backoffMs, MAX_ATTEMPTS } from '../backoff.js';
+
+import type { NewWriteQueueItem, WriteQueue, WriteQueueItem } from './types.js';
 
 /**
  * Bidirectional mapping between the Dexie row (snake_case + epoch ms) and the
@@ -50,10 +52,12 @@ export function rowToItem(row: DexieWriteQueueItem): WriteQueueItem {
     attempts: row.attempts,
     lastError: row.last_error,
     createdAt: new Date(row.created_at).toISOString(),
+    nextAttemptAt: row.next_attempt_at ?? 0,
+    dead: (row.dead ?? 0) === 1,
   };
 }
 
-export function itemToEnqueueInput(item: WriteQueueItem): EnqueueInput {
+export function itemToEnqueueInput(item: NewWriteQueueItem): EnqueueInput {
   // We accept the runtime cast because S3's `entityType` is a string and the
   // adapter passes through entity-agnostic. The storage layer enforces the
   // closed `EntityType` union at the public `enqueueWrite` signature; callers
@@ -97,22 +101,22 @@ export function createDexieWriteQueue(db?: TravelDB): DexieWriteQueue {
   const handle = db ?? defaultDb;
   const claimed = new Set<string>();
 
-  async function nextUnclaimed(): Promise<DexieWriteQueueItem | null> {
-    const row = await peekNextPending(handle);
-    if (!row) return null;
-    if (!claimed.has(row.id)) return row;
-    // Fall back to a linear scan of pending rows by created_at order until we
-    // find one we haven't claimed yet. The queue is typically tiny (< 100
-    // rows during a sync); this is fine.
-    const all = await handle.write_queue.orderBy('created_at').toArray();
-    for (const candidate of all) {
+  /**
+   * Oldest row that is alive, past its backoff deadline, and not already
+   * claimed by this drain. Rows still backing off are stepped over rather
+   * than blocked on — pre-ADR-0019 the drain peeked only the FIFO head, so a
+   * single failing item froze every write behind it indefinitely.
+   */
+  async function nextReady(): Promise<DexieWriteQueueItem | null> {
+    const ready = await listReadyWrites(Date.now(), handle);
+    for (const candidate of ready) {
       if (!claimed.has(candidate.id)) return candidate;
     }
     return null;
   }
 
   return {
-    async enqueue(item: WriteQueueItem): Promise<void> {
+    async enqueue(item: NewWriteQueueItem): Promise<void> {
       await enqueueWrite(itemToEnqueueInput(item), handle);
     },
 
@@ -122,7 +126,7 @@ export function createDexieWriteQueue(db?: TravelDB): DexieWriteQueue {
       // refuse to forward them to Drive. Loop until we either find a usable
       // row or the queue is empty.
       for (;;) {
-        const row = await nextUnclaimed();
+        const row = await nextReady();
         if (!row) return null;
         if (row.resolved_path === '') {
           await dequeueById(row.id, handle);
@@ -133,13 +137,24 @@ export function createDexieWriteQueue(db?: TravelDB): DexieWriteQueue {
       }
     },
 
+    /**
+     * Terminal failures and exhausted retries mark the row `dead` and keep it.
+     * The pre-ADR-0019 adapter deleted it, which silently threw away the
+     * user's edit with nothing left to inspect. A dead row still costs one
+     * IndexedDB record, is excluded from the drain and from inbound
+     * write-suppression, and is counted by the status indicator.
+     */
     async markFailed(id: string, error: string, terminal: boolean): Promise<void> {
       claimed.delete(id);
-      if (terminal) {
-        await dequeueById(id, handle);
-        return;
-      }
-      await recordQueueFailure(id, error, handle);
+      const row = await handle.write_queue.get(id);
+      const attempts = (row?.attempts ?? 0) + 1;
+      const dead = terminal || attempts >= MAX_ATTEMPTS;
+      await recordQueueFailure(
+        id,
+        error,
+        dead ? { dead: true } : { nextAttemptAt: Date.now() + backoffMs(attempts) },
+        handle,
+      );
     },
 
     async markApplied(id: string, newRevision?: string, fileId?: string): Promise<void> {

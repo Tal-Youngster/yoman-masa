@@ -44,7 +44,25 @@ export interface WriteQueueItem<P = unknown> {
   readonly lastError: string | null;
   /** ISO timestamp at which the item was enqueued. */
   readonly createdAt: string;
+  /** Epoch ms before which the drain must skip this item. `0` = ready. */
+  readonly nextAttemptAt: number;
+  /** Retired after a terminal error or an exhausted retry budget (ADR-0019). */
+  readonly dead: boolean;
 }
+
+/**
+ * What a *caller* supplies to {@link WriteQueue.enqueue}. Retry bookkeeping
+ * (`nextAttemptAt`, `dead`) is the queue's business, not the feature slice's,
+ * so those are defaulted by the implementation rather than demanded of every
+ * admin service.
+ */
+export type NewWriteQueueItem<P = unknown> = Omit<
+  WriteQueueItem<P>,
+  'nextAttemptAt' | 'dead'
+> & {
+  readonly nextAttemptAt?: number;
+  readonly dead?: boolean;
+};
 
 /**
  * Minimal write-queue interface. S2 will implement this on Dexie; tests provide
@@ -52,7 +70,7 @@ export interface WriteQueueItem<P = unknown> {
  */
 export interface WriteQueue {
   /** Insert a new item. Idempotent on `id`. */
-  enqueue(item: WriteQueueItem): Promise<void>;
+  enqueue(item: NewWriteQueueItem): Promise<void>;
   /**
    * Atomically claim the next pending item from the queue. Returns `null` if
    * empty. The worker calls this in a loop until `null`.
